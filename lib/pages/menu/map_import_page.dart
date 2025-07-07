@@ -1,15 +1,19 @@
-// lib/pages/menu/map_import_page.dart (VERSÃO COMPLETA E FINAL)
+// lib/pages/menu/map_import_page.dart (VERSÃO CORRIGIDA)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geovigilancia/models/sample_point.dart';
-import 'package:geovigilancia/pages/amostra/coleta_dados_page.dart';
 import 'package:geovigilancia/providers/map_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
+
+// <<< 1. IMPORTAR OS ARQUIVOS NECESSÁRIOS >>>
+import 'package:geovigilancia/models/vistoria_model.dart';
+import 'package:geovigilancia/pages/vistorias/form_vistoria_page.dart';
+
 
 class MapImportPage extends StatefulWidget {
   const MapImportPage({super.key});
@@ -60,11 +64,9 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
     }
   }
 
-  // NOVA FUNÇÃO para mostrar o diálogo de importação
   Future<void> _handleImport() async {
     final provider = context.read<MapProvider>();
     
-    // Mostra um diálogo para o usuário escolher o que importar
     final bool? isPlano = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -72,12 +74,12 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
         content: const Text('Escolha o tipo de arquivo para importar para esta atividade.'),
         actions: <Widget>[
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false), // Carga de Talhões
-            child: const Text('Carga de Talhões (Polígonos)'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Carga de Setores (Polígonos)'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true), // Plano de Amostragem
-            child: const Text('Plano de Amostragem (Pontos)'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Plano de Vistoria (Pontos)'),
           ),
         ],
       ),
@@ -104,7 +106,7 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
   Future<void> _handleGenerateSamples() async {
     final provider = context.read<MapProvider>();
     if (provider.polygons.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Importe ou desenhe os polígonos dos talhões primeiro.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Importe ou desenhe os polígonos dos setores primeiro.')));
       return;
     }
 
@@ -124,13 +126,13 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
     return showDialog<double>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Densidade da Amostragem'),
+        title: const Text('Densidade da Vistoria'),
         content: Form(
           key: formKey,
           child: TextFormField(
             controller: densityController,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Hectares por amostra', suffixText: 'ha'),
+            decoration: const InputDecoration(labelText: 'Imóveis por hectare', suffixText: 'imóveis/ha'),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             validator: (value) {
               if (value == null || value.isEmpty) return 'Campo obrigatório';
@@ -205,20 +207,20 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
         IconButton(
           icon: const Icon(Icons.share_outlined),
           onPressed: mapProvider.isLoading ? null : () => context.read<MapProvider>().exportarPlanoDeAmostragem(context),
-          tooltip: 'Exportar Plano de Amostragem',
+          tooltip: 'Exportar Plano de Trabalho',
         ),
         if(mapProvider.polygons.isNotEmpty)
           IconButton(
               icon: const Icon(Icons.grid_on_sharp),
               onPressed: mapProvider.isLoading ? null : _handleGenerateSamples,
-              tooltip: 'Gerar Amostras'),
+              tooltip: 'Gerar Vistorias'),
         IconButton(
             icon: const Icon(Icons.edit_location_alt_outlined),
             onPressed: () => mapProvider.startDrawing(),
             tooltip: 'Desenhar Área'),
         IconButton(
             icon: const Icon(Icons.file_upload_outlined),
-            onPressed: mapProvider.isLoading ? null : _handleImport, // Chama a nova função com diálogo
+            onPressed: mapProvider.isLoading ? null : _handleImport,
             tooltip: 'Importar Arquivo'),
       ],
     );
@@ -280,15 +282,16 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
                         if (!mounted) return;
                         final dbId = samplePoint.data['dbId'] as int?;
                         if (dbId == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: ID da parcela não encontrado.')));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: ID da vistoria não encontrado.')));
                           return;
                         }
-                        final parcela = await DatabaseHelper.instance.getParcelaById(dbId);
-                        if (!mounted || parcela == null) return;
+                        // <<< 2. CORREÇÃO NA CHAMADA AO BANCO E NA NAVEGAÇÃO >>>
+                        final vistoria = await DatabaseHelper.instance.getVistoriaById(dbId);
+                        if (!mounted || vistoria == null) return;
 
                         await Navigator.push<bool>(
                           context,
-                          MaterialPageRoute(builder: (context) => ColetaDadosPage(parcelaParaEditar: parcela))
+                          MaterialPageRoute(builder: (context) => FormVistoriaPage(vistoriaParaEditar: vistoria))
                         );
                       },
                       child: Container(
@@ -382,6 +385,7 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
   }
 }
 
+// A classe LocationMarker permanece a mesma
 class LocationMarker extends StatefulWidget {
   const LocationMarker({super.key});
 

@@ -1,27 +1,27 @@
-// lib/pages/fazenda/form_fazenda_page.dart
+// lib/pages/bairros/form_bairro_page.dart (NOVO ARQUIVO)
 
 import 'package:flutter/material.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-import 'package:geovigilancia/models/fazenda_model.dart';
+import 'package:geovigilancia/models/bairro_model.dart';
 import 'package:sqflite/sqflite.dart';
 
-class FormFazendaPage extends StatefulWidget {
+class FormBairroPage extends StatefulWidget {
   final int atividadeId;
-  final Fazenda? fazendaParaEditar; 
+  final Bairro? bairroParaEditar; 
 
-  const FormFazendaPage({
+  const FormBairroPage({
     super.key,
     required this.atividadeId,
-    this.fazendaParaEditar, 
+    this.bairroParaEditar, 
   });
 
-  bool get isEditing => fazendaParaEditar != null;
+  bool get isEditing => bairroParaEditar != null;
 
   @override
-  State<FormFazendaPage> createState() => _FormFazendaPageState();
+  State<FormBairroPage> createState() => _FormBairroPageState();
 }
 
-class _FormFazendaPageState extends State<FormFazendaPage> {
+class _FormBairroPageState extends State<FormBairroPage> {
   final _formKey = GlobalKey<FormState>();
   final _idController = TextEditingController();
   final _nomeController = TextEditingController();
@@ -34,11 +34,11 @@ class _FormFazendaPageState extends State<FormFazendaPage> {
   void initState() {
     super.initState();
     if (widget.isEditing) {
-      final fazenda = widget.fazendaParaEditar!;
-      _idController.text = fazenda.id;
-      _nomeController.text = fazenda.nome;
-      _municipioController.text = fazenda.municipio;
-      _estadoController.text = fazenda.estado;
+      final bairro = widget.bairroParaEditar!;
+      _idController.text = bairro.id;
+      _nomeController.text = bairro.nome;
+      _municipioController.text = bairro.municipio;
+      _estadoController.text = bairro.estado;
     }
   }
 
@@ -55,7 +55,7 @@ class _FormFazendaPageState extends State<FormFazendaPage> {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() => _isSaving = true);
 
-      final fazenda = Fazenda(
+      final bairro = Bairro(
         id: _idController.text.trim(),
         atividadeId: widget.atividadeId,
         nome: _nomeController.text.trim(),
@@ -67,17 +67,14 @@ class _FormFazendaPageState extends State<FormFazendaPage> {
         final dbHelper = DatabaseHelper.instance;
         
         if (widget.isEditing) {
-            // No modo de edição, não podemos simplesmente dar update no ID, pois ele faz parte da chave primária.
-            // A melhor abordagem é apagar e inserir novamente, garantindo que o ID permaneça o mesmo.
-            // O DatabaseHelper não tem um método update para fazenda, então esta é a lógica correta.
-            await dbHelper.deleteFazenda(widget.fazendaParaEditar!.id, widget.fazendaParaEditar!.atividadeId);
+            await dbHelper.deleteBairro(widget.bairroParaEditar!.id, widget.bairroParaEditar!.atividadeId);
         }
-        await dbHelper.insertFazenda(fazenda);
+        await dbHelper.insertBairro(bairro);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Fazenda ${widget.isEditing ? 'atualizada' : 'criada'} com sucesso!'),
+              content: Text('Bairro ${widget.isEditing ? 'atualizado' : 'criado'} com sucesso!'),
               backgroundColor: Colors.green
             ),
           );
@@ -86,7 +83,7 @@ class _FormFazendaPageState extends State<FormFazendaPage> {
       } on DatabaseException catch (e) {
         if (e.isUniqueConstraintError() && mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro: O ID "${fazenda.id}" já existe para esta atividade.'), backgroundColor: Colors.red),
+            SnackBar(content: Text('Erro: O ID "${bairro.id}" já existe para esta atividade.'), backgroundColor: Colors.red),
           );
         } else if (mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
@@ -112,7 +109,7 @@ class _FormFazendaPageState extends State<FormFazendaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Editar Fazenda' : 'Nova Fazenda'),
+        title: Text(widget.isEditing ? 'Editar Bairro' : 'Novo Bairro'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -123,22 +120,20 @@ class _FormFazendaPageState extends State<FormFazendaPage> {
             children: [
               TextFormField(
                 controller: _idController,
-                // <<< ALTERAÇÃO PRINCIPAL AQUI >>>
                 enabled: !widget.isEditing,
                 style: TextStyle(
                   color: widget.isEditing ? Colors.grey.shade600 : null,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'ID da Fazenda (Código do Cliente)',
+                  labelText: 'ID do Bairro (Código Oficial)',
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.vpn_key_outlined),
-                  // Adiciona uma cor de preenchimento para indicar que está desabilitado
                   filled: widget.isEditing,
                   fillColor: Colors.grey.shade200,
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'O ID da fazenda é obrigatório.';
+                    return 'O ID do bairro é obrigatório.';
                   }
                   return null;
                 },
@@ -147,13 +142,13 @@ class _FormFazendaPageState extends State<FormFazendaPage> {
               TextFormField(
                 controller: _nomeController,
                 decoration: const InputDecoration(
-                  labelText: 'Nome da Fazenda',
+                  labelText: 'Nome do Bairro',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.maps_home_work_outlined),
+                  prefixIcon: Icon(Icons.location_city_outlined),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'O nome da fazenda é obrigatório.';
+                    return 'O nome do bairro é obrigatório.';
                   }
                   return null;
                 },
@@ -164,7 +159,7 @@ class _FormFazendaPageState extends State<FormFazendaPage> {
                 decoration: const InputDecoration(
                   labelText: 'Município',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.location_city_outlined),
+                  prefixIcon: Icon(Icons.map_outlined),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -197,7 +192,7 @@ class _FormFazendaPageState extends State<FormFazendaPage> {
                 icon: _isSaving
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save_outlined),
-                label: Text(_isSaving ? 'Salvando...' : 'Salvar Fazenda'),
+                label: Text(_isSaving ? 'Salvando...' : 'Salvar Bairro'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   textStyle: const TextStyle(fontSize: 16),

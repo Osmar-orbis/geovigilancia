@@ -1,16 +1,13 @@
-// lib/pages/vistorias/lista_focos_page.dart (ADAPTADO PARA GEOVIGILÂNCIA)
+// lib/pages/vistorias/lista_focos_page.dart (VERSÃO CORRIGIDA)
 
 import 'package:flutter/material.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-// <<< MUDANÇA: Imports dos novos modelos e do novo diálogo >>>
 import 'package:geovigilancia/models/foco_model.dart';
 import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/widgets/foco_dialog.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-// import 'package:geovigilancia/pages/dashboard/dashboard_page.dart'; // Removido, será substituído
 
 class ListaFocosPage extends StatefulWidget {
-  // <<< MUDANÇA: Recebe um objeto Vistoria em vez de Parcela >>>
   final Vistoria vistoria;
   const ListaFocosPage({super.key, required this.vistoria});
 
@@ -19,16 +16,11 @@ class ListaFocosPage extends StatefulWidget {
 }
 
 class _ListaFocosPageState extends State<ListaFocosPage> {
-  // <<< REMOÇÃO: ValidationService não é mais necessário aqui >>>
   final dbHelper = DatabaseHelper.instance;
-
   late Vistoria _vistoriaAtual;
   List<Foco> _focosColetados = [];
-  
   late Future<bool> _dataLoadingFuture;
-
   bool _isSaving = false;
-  // <<< REMOÇÃO: Lógica de dominantes e lista invertida removida >>>
   bool _isReadOnly = false;
 
   @override
@@ -38,9 +30,7 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
     _dataLoadingFuture = _carregarDadosIniciais();
   }
 
-  // <<< MUDANÇA: Carrega focos em vez de árvores >>>
   Future<bool> _carregarDadosIniciais() async {
-    // Vistoria é considerada "read only" se não estiver como "realizada"
     if (_vistoriaAtual.status != StatusVisita.realizada) {
       _isReadOnly = true;
     } else {
@@ -54,7 +44,6 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
     return true;
   }
   
-  // <<< MUDANÇA: Conclui a vistoria, definindo o resultado >>>
   Future<void> _concluirVistoria() async {
     final confirm = await showDialog<bool>(
       context: context, 
@@ -70,32 +59,28 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
 
     if (!confirm || !mounted) return;
     
-    // Define o resultado baseado na presença de focos
     final resultadoFinal = _focosColetados.isEmpty ? 'Sem Foco' : 'Com Foco';
-    await _salvarEstadoAtual(concluir: true, resultado: resultadoFinal, showSnackbar: false);
+    _vistoriaAtual.resultado = resultadoFinal;
+    await _salvarEstadoAtual(concluir: true, showSnackbar: false);
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Vistoria concluída com sucesso!'), 
         backgroundColor: Colors.green
       ));
-      Navigator.of(context).pop(true); // Retorna para a tela de lista de vistorias
+      Navigator.of(context).pop(true);
     }
   }
 
-  // <<< MUDANÇA: Salva o objeto Vistoria e a lista de Focos >>>
-  Future<void> _salvarEstadoAtual({bool showSnackbar = true, bool concluir = false, String? resultado}) async {
+  Future<void> _salvarEstadoAtual({bool showSnackbar = true, bool concluir = false}) async {
     if (_isSaving) return;
     if (mounted) setState(() => _isSaving = true);
     try {
       if (concluir) {
-        // Altera o status da vistoria para 'fechada' ou 'recusa' caso seja o caso
-        // Aqui, consideramos 'concluir' como o fim da visita bem sucedida
         _vistoriaAtual.status = StatusVisita.realizada;
-        _vistoriaAtual.resultado = resultado;
         setState(() => _isReadOnly = true);
       }
-      // Usa o novo método do DB Helper para salvar vistoria e focos
+      
       await dbHelper.saveFullVistoria(_vistoriaAtual, _focosColetados);
       if (mounted && showSnackbar) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Progresso salvo!'), duration: Duration(seconds: 2), backgroundColor: Colors.green));
@@ -107,9 +92,6 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
     }
   }
 
-  // <<< REMOÇÃO: _navegarParaDashboard, pois o dashboard será diferente >>>
-
-  // <<< MUDANÇA: Deleta um foco específico >>>
   Future<void> _deletarFoco(BuildContext context, Foco foco) async {
     final bool? confirmar = await showDialog<bool>(
       context: context,
@@ -141,9 +123,7 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
     }
   }
 
-  // <<< MUDANÇA: Abre o diálogo para adicionar/editar um Foco >>>
   Future<void> _abrirDialogoFoco({Foco? focoParaEditar}) async {
-    // A validação agora é mais simples e pode ser feita no próprio diálogo
     final result = await showDialog<Foco?>(
       context: context,
       barrierDismissible: false,
@@ -159,6 +139,8 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
           final index = _focosColetados.indexWhere((f) => f.id == focoParaEditar.id);
           if (index != -1) {
             _focosColetados[index] = result;
+          } else {
+             _focosColetados.add(result);
           }
         } else {
           _focosColetados.add(result);
@@ -168,9 +150,6 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
     }
   }
 
-  // <<< REMOÇÃO: _identificarArvoresDominantes e _analisarParcelaInteira >>>
-
-  // <<< MUDANÇA: Card de resumo para mostrar dados da vistoria >>>
   Widget _buildSummaryCard() {
     return Card(
       margin: const EdgeInsets.all(8),
@@ -181,7 +160,8 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Vistoria: ${_vistoriaAtual.identificadorImovel}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            // <<< CORREÇÃO APLICADA AQUI >>>
+            Text('Vistoria: ${_vistoriaAtual.identificadorImovel ?? "ID não informado"}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const Divider(height: 20),
             _buildStatRow('Bairro:', _vistoriaAtual.nomeBairro ?? 'N/A'),
             _buildStatRow('Setor/Quarteirão:', _vistoriaAtual.nomeSetor ?? 'N/A'),
@@ -193,7 +173,6 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
     );
   }
   
-  // <<< MUDANÇA: Header da lista de focos >>>
   Widget _buildHeaderRow() {
     final theme = Theme.of(context);
     final headerStyle = theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold);

@@ -1,4 +1,4 @@
-// lib/pages/atividades/atividades_page.dart (VERSÃO COM EDIÇÃO DE ATIVIDADE)
+// lib/pages/atividades/atividades_page.dart (VERSÃO CORRIGIDA E ADAPTADA PARA GEOVIGILÂNCIA)
 
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -8,15 +8,19 @@ import 'package:intl/intl.dart';
 import '../../data/datasources/local/database_helper.dart';
 import '../../models/atividade_model.dart';
 import '../../models/campanha_model.dart';
-import 'detalhes_atividade_page.dart';
 import 'form_atividade_page.dart';
 
+// Import temporariamente comentado para simplificar e garantir a compilação.
+// Será necessário criar a página 'detalhes_bairro_page' para reativá-lo.
+// import 'detalhes_atividade_page.dart';
+
 class AtividadesPage extends StatefulWidget {
-  final Projeto projeto;
+  // <<< CORREÇÃO 1: Recebe um objeto Campanha >>>
+  final Campanha campanha;
 
   const AtividadesPage({
     super.key,
-    required this.projeto,
+    required this.campanha,
   });
 
   @override
@@ -35,7 +39,8 @@ class _AtividadesPageState extends State<AtividadesPage> {
 
   void _carregarAtividades() {
     setState(() {
-      _atividadesFuture = dbHelper.getAtividadesDoProjeto(widget.projeto.id!);
+      // <<< CORREÇÃO 2: Chama o método correto do DB Helper >>>
+      _atividadesFuture = dbHelper.getAtividadesDaCampanha(widget.campanha.id!);
     });
   }
 
@@ -70,12 +75,12 @@ class _AtividadesPageState extends State<AtividadesPage> {
     }
   }
 
-  // Navega para a tela de formulário para criar uma nova atividade
   void _navegarParaFormularioAtividade() async {
     final bool? atividadeCriada = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => FormAtividadePage(projetoId: widget.projeto.id!),
+        // <<< CORREÇÃO 3: Passa 'campanhaId' em vez de 'projetoId' >>>
+        builder: (context) => FormAtividadePage(campanhaId: widget.campanha.id!),
       ),
     );
     if (atividadeCriada == true && mounted) {
@@ -83,38 +88,42 @@ class _AtividadesPageState extends State<AtividadesPage> {
     }
   }
   
-  // <<< MUDANÇA 1 >>> Nova função para navegar para a tela de edição
   void _navegarParaEdicao(Atividade atividade) async {
     final bool? atividadeEditada = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        // Reutiliza a FormAtividadePage, passando a atividade a ser editada
         builder: (context) => FormAtividadePage(
-          projetoId: atividade.projetoId,
+          // <<< CORREÇÃO 4: Usa 'campanhaId' do objeto 'atividade' >>>
+          campanhaId: atividade.campanhaId,
           atividadeParaEditar: atividade,
         ),
       ),
     );
-    // Se a edição foi salva com sucesso, recarrega a lista
     if (atividadeEditada == true && mounted) {
       _carregarAtividades();
     }
   }
   
+  // A navegação para detalhes da atividade foi comentada para evitar erros,
+  // pois a página de detalhes ainda não foi criada/adaptada.
   void _navegarParaDetalhes(Atividade atividade) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DetalhesAtividadePage(atividade: atividade),
-      ),
-    );
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //     builder: (context) => DetalhesAtividadePage(atividade: atividade),
+    //   ),
+    // );
+     ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Navegação para detalhes da atividade em desenvolvimento.')),
+      );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Atividades de ${widget.projeto.nome}'),
+        // <<< CORREÇÃO 5: Usa o nome da campanha no título >>>
+        title: Text('Atividades de ${widget.campanha.nome}'),
         centerTitle: true,
       ),
       body: FutureBuilder<List<Atividade>>(
@@ -144,10 +153,8 @@ class _AtividadesPageState extends State<AtividadesPage> {
             itemBuilder: (context, index) {
               final atividade = atividades[index];
               
-              // <<< MUDANÇA 2 >>> Adiciona a ação de editar no Slidable
               return Slidable(
                 key: ValueKey(atividade.id),
-                // Ações que aparecem ao deslizar para a direita
                 startActionPane: ActionPane(
                   motion: const DrawerMotion(),
                   extentRatio: 0.25,
@@ -161,7 +168,6 @@ class _AtividadesPageState extends State<AtividadesPage> {
                     ),
                   ],
                 ),
-                // Ações que aparecem ao deslizar para a esquerda (excluir)
                 endActionPane: ActionPane(
                   motion: const StretchMotion(),
                   children: [

@@ -1,26 +1,23 @@
-// lib/pages/projetos/lista_projetos_page.dart (VERSÃO COM EDIÇÃO DE PROJETO)
+// lib/pages/campanhas/lista_campanhas_page.dart (CÓDIGO COMPLETO E CORRIGIDO)
 
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-// <<< MUDANÇA 1 >>> Import do Slidable
-import 'package:flutter_slidable/flutter_slidable.dart'; 
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
 import 'package:geovigilancia/models/atividade_model.dart';
-import 'package:geovigilancia/models/projeto_model.dart';
-import 'package:geovigilancia/pages/projetos/detalhes_projeto_page.dart';
-import 'form_campanha_page.dart';
+import 'package:geovigilancia/models/campanha_model.dart';
+import 'package:geovigilancia/pages/campanhas/detalhes_campanha_page.dart';
+import 'package:geovigilancia/pages/campanhas/form_campanha_page.dart';
 
-// <<< MUDANÇA 2 >>> Import do form_projeto_page para reutilização no modo de edição
-
-
-class ListaProjetosPage extends StatefulWidget {
+// <<< AQUI ESTÁ A DEFINIÇÃO DA CLASSE QUE ESTAVA FALTANDO >>>
+class ListaCampanhasPage extends StatefulWidget {
   final String title;
   final bool isImporting;
   final String? importType;
 
-  const ListaProjetosPage({
+  const ListaCampanhasPage({
     super.key,
     required this.title,
     this.isImporting = false,
@@ -28,69 +25,67 @@ class ListaProjetosPage extends StatefulWidget {
   });
 
   @override
-  State<ListaProjetosPage> createState() => _ListaProjetosPageState();
+  State<ListaCampanhasPage> createState() => _ListaCampanhasPageState();
 }
 
-class _ListaProjetosPageState extends State<ListaProjetosPage> {
+class _ListaCampanhasPageState extends State<ListaCampanhasPage> {
   final dbHelper = DatabaseHelper.instance;
-  List<Projeto> projetos = [];
+  List<Campanha> campanhas = [];
   bool _isLoading = true;
 
   bool _isSelectionMode = false;
-  final Set<int> _selectedProjetos = {};
+  final Set<int> _selectedCampanhas = {};
 
-  final Map<int, List<Atividade>> _atividadesPorProjeto = {};
+  final Map<int, List<Atividade>> _atividadesPorCampanha = {};
   bool _isLoadingAtividades = false;
 
   @override
   void initState() {
     super.initState();
-    _carregarProjetos();
+    _carregarCampanhas();
   }
 
-  Future<void> _carregarProjetos() async {
+  Future<void> _carregarCampanhas() async {
     setState(() => _isLoading = true);
-    final data = await dbHelper.getTodosProjetos();
+    final data = await dbHelper.getTodasCampanhas();
     if (mounted) {
       setState(() {
-        projetos = data;
+        campanhas = data;
         _isLoading = false;
       });
     }
   }
   
-  // --- MÉTODOS PARA O MODO DE VISUALIZAÇÃO/EDIÇÃO ---
-
   void _clearSelection() {
     if (mounted) {
       setState(() {
-        _selectedProjetos.clear();
+        _selectedCampanhas.clear();
         _isSelectionMode = false;
       });
     }
   }
 
-  void _toggleSelection(int projetoId) {
+  void _toggleSelection(int campanhaId) {
     if (mounted) {
       setState(() {
-        if (_selectedProjetos.contains(projetoId)) {
-          _selectedProjetos.remove(projetoId);
+        if (_selectedCampanhas.contains(campanhaId)) {
+          _selectedCampanhas.remove(campanhaId);
         } else {
-          _selectedProjetos.add(projetoId);
+          _selectedCampanhas.add(campanhaId);
         }
-        _isSelectionMode = _selectedProjetos.isNotEmpty;
+        _isSelectionMode = _selectedCampanhas.isNotEmpty;
       });
     }
   }
 
-  Future<void> _deletarProjetosSelecionados() async {
-    if (_selectedProjetos.isEmpty || !mounted) return;
+  Future<void> _deletarCampanhasSelecionadas() async {
+    if (_selectedCampanhas.isEmpty || !mounted) return;
 
     final confirmar = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
               title: const Text('Confirmar Exclusão'),
-              content: Text('Tem certeza que deseja apagar os ${_selectedProjetos.length} projetos selecionados e TODOS os seus dados (atividades, fazendas, coletas, etc)? Esta ação é PERMANENTE.'),
+              content: Text('Tem certeza que deseja apagar as ${_selectedCampanhas.length} campanhas selecionadas e TODOS os seus dados? Esta ação é PERMANENTE.'),
               actions: [
                 TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
                 FilledButton(
@@ -100,51 +95,45 @@ class _ListaProjetosPageState extends State<ListaProjetosPage> {
               ],
             ));
     if (confirmar == true && mounted) {
-      for (final id in _selectedProjetos) {
-        await dbHelper.deleteProjeto(id);
+      for (final id in _selectedCampanhas) {
+        await dbHelper.deleteCampanha(id);
       }
       _clearSelection();
-      await _carregarProjetos();
+      await _carregarCampanhas();
     }
   }
 
-  // <<< MUDANÇA 3 >>> Nova função para navegar para a tela de edição
-  void _navegarParaEdicao(Projeto projeto) async {
-    final bool? projetoEditado = await Navigator.push<bool>(
+  void _navegarParaEdicao(Campanha campanha) async {
+    final bool? campanhaEditada = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        // Reutilizamos a FormProjetoPage, passando o projeto a ser editado
-        builder: (context) => FormProjetoPage(
-          projetoParaEditar: projeto,
+        builder: (context) => FormCampanhaPage(
+          campanhaParaEditar: campanha,
         ),
       ),
     );
-    // Se a edição foi salva com sucesso, recarregamos a lista
-    if (projetoEditado == true && mounted) {
-      _carregarProjetos();
+    if (campanhaEditada == true && mounted) {
+      _carregarCampanhas();
     }
   }
   
-  void _navegarParaDetalhes(Projeto projeto) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => DetalhesProjetoPage(projeto: projeto)))
-      .then((_) => _carregarProjetos());
+  void _navegarParaDetalhes(Campanha campanha) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => DetalhesCampanhaPage(campanha: campanha)))
+      .then((_) => _carregarCampanhas());
   }
   
-  // --- MÉTODOS PARA O MODO DE IMPORTAÇÃO ---
-
-  Future<void> _carregarAtividadesDoProjeto(int projetoId) async {
-    if (_atividadesPorProjeto.containsKey(projetoId)) return;
+  Future<void> _carregarAtividadesDaCampanha(int campanhaId) async {
+    if (_atividadesPorCampanha.containsKey(campanhaId)) return;
     if (mounted) setState(() => _isLoadingAtividades = true);
-    final atividades = await dbHelper.getAtividadesDoProjeto(projetoId);
+    final atividades = await dbHelper.getAtividadesDaCampanha(campanhaId);
     if (mounted) {
       setState(() {
-        _atividadesPorProjeto[projetoId] = atividades;
+        _atividadesPorCampanha[campanhaId] = atividades;
         _isLoadingAtividades = false;
       });
     }
   }
   
-  // (O resto dos métodos de importação permanece igual)
   Future<void> _iniciarImportacao(Atividade atividade) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -175,24 +164,11 @@ class _ListaProjetosPageState extends State<ListaProjetosPage> {
     try {
       final file = File(result.files.single.path!);
       final csvContent = await file.readAsString();
-      String message;
-
-      // <<< CORREÇÃO NA IMPORTAÇÃO >>> A importação de CSV precisa do ID do PROJETO, não da atividade.
-      final projetoPai = projetos.firstWhere((p) => _atividadesPorProjeto[p.id]?.contains(atividade) ?? false);
-      final projetoId = projetoPai.id!;
-
-      switch (widget.importType) {
-        case 'cubagem':
-          message = await dbHelper.importarCubagemDeEquipe(csvContent, projetoId);
-          break;
-        case 'parcela':
-        default:
-          message = await dbHelper.importarColetaDeEquipe(csvContent, projetoId);
-          break;
-      }
+      
+      final message = await dbHelper.importarVistoriasDeEquipe(csvContent, atividade.id!);
       
       if (mounted) {
-        Navigator.of(context).pop(); // Fecha o dialog de "processando"
+        Navigator.of(context).pop();
         await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -201,11 +177,11 @@ class _ListaProjetosPageState extends State<ListaProjetosPage> {
             actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
           ),
         );
-        Navigator.of(context).pop(); // Volta para a tela de menu
+        Navigator.of(context).pop(); 
       }
     } catch (e) {
       if (mounted) {
-        Navigator.of(context).pop(); // Fecha o dialog de "processando"
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao importar: $e'), backgroundColor: Colors.red),
         );
@@ -213,44 +189,34 @@ class _ListaProjetosPageState extends State<ListaProjetosPage> {
     }
   }
 
-
-  // --- WIDGETS DE CONSTRUÇÃO ---
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _isSelectionMode ? _buildSelectionAppBar() : _buildNormalAppBar(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : projetos.isEmpty
+          : campanhas.isEmpty
               ? _buildEmptyState()
               : widget.isImporting ? _buildImportListView() : _buildNormalListView(),
-      floatingActionButton: widget.isImporting ? null : _buildAddProjectButton(),
+      floatingActionButton: widget.isImporting ? null : _buildAddButton(),
     );
   }
 
   AppBar _buildNormalAppBar() {
     return AppBar(
       title: Text(widget.title),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.upload_file_outlined),
-          onPressed: () { /* Ação de importar GeoJSON se necessário */},
-          tooltip: 'Importar Carga de Projeto (GeoJSON)',
-        ),
-      ],
     );
   }
 
   AppBar _buildSelectionAppBar() {
     return AppBar(
       leading: IconButton(icon: const Icon(Icons.close), onPressed: _clearSelection),
-      title: Text('${_selectedProjetos.length} selecionados'),
+      title: Text('${_selectedCampanhas.length} selecionada(s)'),
       actions: [
         IconButton(
           icon: const Icon(Icons.delete_outline),
-          onPressed: _deletarProjetosSelecionados,
-          tooltip: 'Apagar Selecionados',
+          onPressed: _deletarCampanhasSelecionadas,
+          tooltip: 'Apagar Selecionadas',
         ),
       ],
     );
@@ -258,21 +224,19 @@ class _ListaProjetosPageState extends State<ListaProjetosPage> {
 
   Widget _buildNormalListView() {
     return ListView.builder(
-      itemCount: projetos.length,
+      itemCount: campanhas.length,
       itemBuilder: (context, index) {
-        final projeto = projetos[index];
-        final isSelected = _selectedProjetos.contains(projeto.id!);
+        final campanha = campanhas[index];
+        final isSelected = _selectedCampanhas.contains(campanha.id!);
 
-        // <<< MUDANÇA 4 >>> O Card agora é envolvido por um Slidable
         return Slidable(
-          key: ValueKey(projeto.id),
-          // Ações que aparecem ao deslizar (neste caso, da esquerda para a direita)
+          key: ValueKey(campanha.id),
           startActionPane: ActionPane(
             motion: const DrawerMotion(),
-            extentRatio: 0.25, // Ocupa 25% da largura
+            extentRatio: 0.25,
             children: [
               SlidableAction(
-                onPressed: (_) => _navegarParaEdicao(projeto),
+                onPressed: (_) => _navegarParaEdicao(campanha),
                 backgroundColor: Colors.blue.shade700,
                 foregroundColor: Colors.white,
                 icon: Icons.edit_outlined,
@@ -281,18 +245,18 @@ class _ListaProjetosPageState extends State<ListaProjetosPage> {
             ],
           ),
           child: Card(
-            color: isSelected ? Colors.lightBlue.shade100 : null,
+            color: isSelected ? Theme.of(context).colorScheme.secondary.withOpacity(0.2) : null,
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: ListTile(
-              onTap: () => _isSelectionMode ? _toggleSelection(projeto.id!) : _navegarParaDetalhes(projeto),
-              onLongPress: () => _toggleSelection(projeto.id!),
+              onTap: () => _isSelectionMode ? _toggleSelection(campanha.id!) : _navegarParaDetalhes(campanha),
+              onLongPress: () => _toggleSelection(campanha.id!),
               leading: Icon(
-                isSelected ? Icons.check_circle : Icons.folder_outlined,
-                color: Theme.of(context).primaryColor,
+                isSelected ? Icons.check_circle : Icons.campaign_outlined,
+                color: Theme.of(context).colorScheme.primary,
               ),
-              title: Text(projeto.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Responsável: ${projeto.responsavel}'),
-              trailing: Text(DateFormat('dd/MM/yy').format(projeto.dataCriacao)),
+              title: Text(campanha.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Responsável: ${campanha.responsavel}'),
+              trailing: Text(DateFormat('dd/MM/yy').format(campanha.dataCriacao)),
             ),
           ),
         );
@@ -302,38 +266,38 @@ class _ListaProjetosPageState extends State<ListaProjetosPage> {
 
   Widget _buildImportListView() {
     return ListView.builder(
-      itemCount: projetos.length,
+      itemCount: campanhas.length,
       itemBuilder: (context, index) {
-        final projeto = projetos[index];
+        final campanha = campanhas[index];
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: ExpansionTile(
-            leading: Icon(Icons.folder_copy_outlined, color: Theme.of(context).primaryColor),
-            title: Text(projeto.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(projeto.responsavel),
+            leading: Icon(Icons.campaign_outlined, color: Theme.of(context).colorScheme.primary),
+            title: Text(campanha.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(campanha.responsavel),
             onExpansionChanged: (isExpanding) {
-              if (isExpanding) _carregarAtividadesDoProjeto(projeto.id!);
+              if (isExpanding) _carregarAtividadesDaCampanha(campanha.id!);
             },
             children: [
-              if (_isLoadingAtividades && !_atividadesPorProjeto.containsKey(projeto.id))
+              if (_isLoadingAtividades && !_atividadesPorCampanha.containsKey(campanha.id))
                 const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Center(child: CircularProgressIndicator()),
                 )
-              else if (_atividadesPorProjeto[projeto.id]?.isEmpty ?? true)
+              else if (_atividadesPorCampanha[campanha.id]?.isEmpty ?? true)
                 const ListTile(
-                  title: Text('Nenhuma atividade neste projeto.'),
+                  title: Text('Nenhuma atividade nesta campanha.'),
                   leading: Icon(Icons.info_outline, color: Colors.grey),
                 )
               else
-                ..._atividadesPorProjeto[projeto.id]!.map((atividade) {
+                ..._atividadesPorCampanha[campanha.id]!.map((atividade) {
                   return ListTile(
                     title: Text(atividade.tipo),
                     subtitle: Text(atividade.descricao.isNotEmpty ? atividade.descricao : 'Sem descrição'),
                     leading: const Icon(Icons.file_download_outlined, color: Colors.green),
                     onTap: () => _iniciarImportacao(atividade),
                   );
-                }).toList()
+                })
             ],
           ),
         );
@@ -348,23 +312,23 @@ class _ListaProjetosPageState extends State<ListaProjetosPage> {
         children: [
           const Icon(Icons.folder_off_outlined, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text('Nenhum projeto encontrado.', style: TextStyle(fontSize: 18)),
+          Text('Nenhuma campanha encontrada.', style: Theme.of(context).textTheme.titleLarge),
           if (!widget.isImporting)
-            const Text('Use o botão "+" para adicionar um novo.', style: TextStyle(color: Colors.grey)),
+            Text('Use o botão "+" para adicionar uma nova.', style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
     );
   }
 
-  Widget _buildAddProjectButton() {
+  Widget _buildAddButton() {
     return FloatingActionButton(
       onPressed: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const FormProjetoPage()))
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const FormCampanhaPage()))
           .then((criado) {
-            if (criado == true) _carregarProjetos();
+            if (criado == true) _carregarCampanhas();
           });
       },
-      tooltip: 'Adicionar Projeto',
+      tooltip: 'Adicionar Campanha',
       child: const Icon(Icons.add),
     );
   }

@@ -1,12 +1,10 @@
-// lib/pages/campanhas/form_campanha_page.dart (ADAPTADO PARA GEOVIGILÂNCIA)
+// lib/pages/campanhas/form_campanha_page.dart (NOVO ARQUIVO)
 
 import 'package:flutter/material.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-// <<< MUDANÇA: Importa o modelo Campanha em vez de Projeto >>>
-import 'package:geovigilancia/models/campanha_model.dart'; 
+import 'package:geovigilancia/models/campanha_model.dart';
 
 class FormCampanhaPage extends StatefulWidget {
-  // <<< MUDANÇA: Parâmetro para edição agora é do tipo Campanha >>>
   final Campanha? campanhaParaEditar;
 
   const FormCampanhaPage({
@@ -23,7 +21,6 @@ class FormCampanhaPage extends StatefulWidget {
 class _FormCampanhaPageState extends State<FormCampanhaPage> {
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
-  // <<< MUDANÇA: Controller de 'empresa' renomeado para 'orgao' >>>
   final _orgaoController = TextEditingController();
   final _responsavelController = TextEditingController();
 
@@ -48,7 +45,6 @@ class _FormCampanhaPageState extends State<FormCampanhaPage> {
     super.dispose();
   }
 
-  // <<< MUDANÇA: Lógica de salvar adaptada para o objeto Campanha >>>
   Future<void> _salvarCampanha() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSaving = true);
@@ -63,17 +59,16 @@ class _FormCampanhaPageState extends State<FormCampanhaPage> {
 
       try {
         final dbHelper = DatabaseHelper.instance;
-        final db = await dbHelper.database;
         
         if (widget.isEditing) {
-          await db.update(
-            'campanhas', // <<< MUDANÇA: Nome da tabela
+          await dbHelper.database.then((db) => db.update(
+            'campanhas',
             campanha.toMap(),
             where: 'id = ?',
             whereArgs: [campanha.id],
-          );
+          ));
         } else {
-          await dbHelper.insertCampanha(campanha); // <<< MUDANÇA: Método específico
+          await dbHelper.insertCampanha(campanha);
         }
 
         if (mounted) {
@@ -128,7 +123,6 @@ class _FormCampanhaPageState extends State<FormCampanhaPage> {
                 },
               ),
               const SizedBox(height: 16),
-              // <<< MUDANÇA: Campo 'Empresa' adaptado para 'Órgão' >>>
               TextFormField(
                 controller: _orgaoController,
                 decoration: const InputDecoration(
@@ -162,7 +156,7 @@ class _FormCampanhaPageState extends State<FormCampanhaPage> {
               ),
               const SizedBox(height: 32),
               ElevatedButton.icon(
-                onPressed: _isSaving ? null : _salvarCampanha, // <<< MUDANÇA: Chama o método adaptado
+                onPressed: _isSaving ? null : _salvarCampanha,
                 icon: _isSaving
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.save_outlined),

@@ -1,19 +1,17 @@
-// lib/pages/quarteiroes/detalhes_quarteirao_page.dart (ADAPTADO PARA GEOVIGILÂNCIA)
+// lib/pages/quarteiroes/detalhes_quarteirao_page.dart (CORRIGIDO)
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-// <<< MUDANÇA: Imports adaptados >>>
 import 'package:geovigilancia/models/atividade_model.dart';
-import 'package:geovigilancia/models/quarteirao_model.dart';
+import 'package:geovigilancia/models/setor_model.dart'; // Importa Setor
 import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/pages/menu/home_page.dart';
 import 'package:geovigilancia/pages/vistorias/form_vistoria_page.dart';
-// import 'package:geovigilancia/pages/dashboard/setor_dashboard_page.dart'; // Futuro dashboard do setor
 
 class DetalhesQuarteiraoPage extends StatefulWidget {
-  // <<< MUDANÇA: Recebe Quarteirao em vez de Talhao >>>
-  final Quarteirao quarteirao;
+  // <<< CORREÇÃO: Usa a classe 'Setor' >>>
+  final Setor quarteirao;
   final Atividade atividade;
 
   const DetalhesQuarteiraoPage(
@@ -24,14 +22,11 @@ class DetalhesQuarteiraoPage extends StatefulWidget {
 }
 
 class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
-  // <<< MUDANÇA: Sempre carrega vistorias, sem distinção de tipo de atividade >>>
   late Future<List<Vistoria>> _vistoriasFuture;
   final dbHelper = DatabaseHelper.instance;
 
   bool _isSelectionMode = false;
   final Set<int> _selectedItens = {};
-
-  // <<< REMOÇÃO: A verificação _isAtividadeDeInventario foi removida >>>
 
   @override
   void initState() {
@@ -44,17 +39,15 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
       setState(() {
         _isSelectionMode = false;
         _selectedItens.clear();
-        // <<< MUDANÇA: Chama o método para buscar vistorias do setor (quarteirão) >>>
         _vistoriasFuture = dbHelper.getVistoriasDoSetor(widget.quarteirao.id!);
       });
     }
   }
 
-  // <<< MUDANÇA: Navega para o formulário de uma nova vistoria >>>
   Future<void> _navegarParaNovaVistoria() async {
     // Busca o objeto completo para ter o nome do bairro
-    final quarteiroesDoBairro = await dbHelper.getSetoresDoBairro(widget.quarteirao.bairroId, widget.quarteirao.bairroAtividadeId);
-    final quarteiraoCompleto = quarteiroesDoBairro.firstWhere(
+    final setoresDoBairro = await dbHelper.getSetoresDoBairro(widget.quarteirao.bairroId, widget.quarteirao.bairroAtividadeId);
+    final setorCompleto = setoresDoBairro.firstWhere(
       (q) => q.id == widget.quarteirao.id,
       orElse: () => widget.quarteirao,
     );
@@ -62,7 +55,7 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
     final bool? recarregar = await Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (context) => FormVistoriaPage(quarteirao: quarteiraoCompleto)),
+          builder: (context) => FormVistoriaPage(quarteirao: setorCompleto)),
     );
 
     if (recarregar == true && mounted) {
@@ -70,7 +63,6 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
     }
   }
   
-  // <<< MUDANÇA: Navega para editar uma vistoria existente >>>
   Future<void> _navegarParaDetalhesVistoria(Vistoria vistoria) async {
     final recarregar = await Navigator.push(
       context,
@@ -82,8 +74,6 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
       _carregarDados();
     }
   }
-  
-  // <<< REMOÇÃO: Toda a lógica de _navegarParaNovaCubagem e _navegarParaDetalhesCubagem foi removida >>>
   
   void _toggleSelectionMode(int? itemId) {
     setState(() {
@@ -123,7 +113,6 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
 
     if (confirmar == true) {
       for (var id in _selectedItens) {
-        // <<< MUDANÇA: Chama o método para deletar vistoria >>>
         await dbHelper.deleteVistoria(id);
       }
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_selectedItens.length} vistorias apagadas.'), backgroundColor: Colors.green));
@@ -135,11 +124,6 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
     return AppBar(
       title: Text('Setor: ${widget.quarteirao.nome}'),
       actions: [
-        // IconButton(
-        //   icon: const Icon(Icons.analytics_outlined),
-        //   tooltip: 'Ver Análise do Setor',
-        //   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SetorDashboardPage(quarteirao: widget.quarteirao))),
-        // ),
         IconButton(
           icon: const Icon(Icons.home_outlined),
           tooltip: 'Voltar para o Início',
@@ -177,7 +161,7 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
                   const Divider(height: 20),
                   Text("Atividade: ${widget.atividade.tipo}", style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text("Bairro: ${widget.quarteirao.bairroNome ?? 'Não informado'}", style: Theme.of(context).textTheme.bodyLarge),
+                  Text("Bairro: ${widget.quarteirao.bairroNome ?? 'Não informado'}", style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
             ),
@@ -191,7 +175,7 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
             ),
           ),
           Expanded(
-            child: FutureBuilder<List<Vistoria>>( // <<< MUDANÇA: Tipagem para Vistoria >>>
+            child: FutureBuilder<List<Vistoria>>(
               future: _vistoriasFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
@@ -210,7 +194,6 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
                     ),
                   );
                 }
-                // <<< MUDANÇA: Chama o novo widget de lista >>>
                 return _buildListaDeVistorias(vistorias);
               },
             ),
@@ -228,7 +211,6 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
     );
   }
 
-  // <<< MUDANÇA: Widget de lista totalmente novo para Vistorias >>>
   Widget _buildListaDeVistorias(List<Vistoria> vistorias) {
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 80),

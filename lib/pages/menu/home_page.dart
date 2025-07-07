@@ -1,16 +1,17 @@
 // lib/pages/menu/home_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:geovigilancia/pages/analises/analise_selecao_page.dart';
+import 'package:provider/provider.dart';
+
+// <<< CORRIJA ESTA LINHA >>>
+import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart'; // Usando o plural "campanhas"
+
 import 'package:geovigilancia/pages/menu/configuracoes_page.dart';
-import 'package:geovigilancia/pages/projetos/lista_projetos_page.dart';
-import 'package:geovigilancia/pages/planejamento/selecao_atividade_mapa_page.dart';
-import 'package:geovigilancia/providers/map_provider.dart';
+import 'package:geovigilancia/providers/license_provider.dart';
 import 'package:geovigilancia/services/export_service.dart';
 import 'package:geovigilancia/widgets/menu_card.dart';
-import 'package:provider/provider.dart';
-import 'package:geovigilancia/providers/license_provider.dart';
 
+// <<< AQUI ESTÁ A CLASSE QUE O MAIN.DART PROCURA >>>
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
   final String title;
@@ -20,6 +21,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // Lógica para mostrar diálogo de importação (adaptada)
   void _mostrarDialogoImportacao(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -31,108 +33,38 @@ class _HomePageState extends State<HomePage> {
           ),
           ListTile(
             leading: const Icon(Icons.table_rows_outlined, color: Colors.green),
-            title: const Text('Coletas de Parcela (Inventário)'),
-            subtitle: const Text('Importa um arquivo CSV com dados de árvores e parcelas.'),
+            title: const Text('Dados de Vistorias de Campo'),
+            subtitle: const Text('Importa um arquivo CSV com dados de vistorias e focos.'),
             onTap: () {
               Navigator.of(ctx).pop();
               Navigator.push(context, MaterialPageRoute(
-                builder: (context) => const ListaProjetosPage(
-                  title: 'Importar para o Projeto...',
+                builder: (context) => const ListaCampanhasPage(
+                  title: 'Importar Vistorias para...',
                   isImporting: true,
-                  importType: 'parcela',
+                  importType: 'vistorias', // Tipo de importação adaptado
                 ),
               ));
             },
           ),
           ListTile(
-            leading: const Icon(Icons.straighten_outlined, color: Colors.brown),
-            title: const Text('Dados de Cubagem'),
-            subtitle: const Text('Importa um arquivo CSV com dados de cubagem e seções.'),
+            leading: Icon(Icons.map_outlined, color: Colors.blue.shade700),
+            title: const Text('Plano de Trabalho (GeoJSON)'),
+            subtitle: const Text('Importa polígonos de setores ou pontos de imóveis.'),
             onTap: () {
-              Navigator.of(ctx).pop();
-              Navigator.push(context, MaterialPageRoute(
-                builder: (context) => const ListaProjetosPage(
-                  title: 'Importar Cubagem para...',
-                  isImporting: true,
-                  importType: 'cubagem',
-                ),
-              ));
+               // A lógica de importação do GeoJSON agora está na página do mapa.
+               // Esta opção pode ser removida ou levar para uma tela de seleção de atividade.
+               Navigator.of(ctx).pop();
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Função de planejamento em desenvolvimento.')));
             },
-          ),
-          ListTile(
-            leading: Icon(Icons.rule_folder_outlined, color: Colors.grey.shade400),
-            title: const Text('Auditoria (Em breve)'),
-            subtitle: const Text('Importa dados para o módulo de auditoria.'),
-            onTap: null,
           ),
         ],
       ),
     );
   }
 
-  void _abrirAnalistaDeDados(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AnaliseSelecaoPage()),
-    );
-  }
-
+  // Lógica para mostrar diálogo de exportação (adaptada)
   void _mostrarDialogoExportacao(BuildContext context) {
-    final exportService = ExportService();
-
-    void _mostrarDialogoParcelas(BuildContext mainDialogContext) {
-      showDialog(
-        context: mainDialogContext,
-        builder: (dialogCtx) => AlertDialog(
-          title: const Text('Tipo de Exportação de Coleta'),
-          content: const Text(
-              'Deseja exportar apenas os dados novos ou um backup completo de todas as coletas de parcela?'),
-          actions: [
-            TextButton(
-              child: const Text('Apenas Novas'),
-              onPressed: () {
-                Navigator.of(dialogCtx).pop();
-                exportService.exportarDados(context);
-              },
-            ),
-            ElevatedButton(
-              child: const Text('Todas (Backup)'),
-              onPressed: () {
-                Navigator.of(dialogCtx).pop();
-                exportService.exportarTodasAsParcelasBackup(context);
-              },
-            ),
-          ],
-        ),
-      );
-    }
-
-    void _mostrarDialogoCubagem(BuildContext mainDialogContext) {
-      showDialog(
-        context: mainDialogContext,
-        builder: (dialogCtx) => AlertDialog(
-          title: const Text('Tipo de Exportação de Cubagem'),
-          content: const Text(
-              'Deseja exportar apenas os dados novos ou um backup completo de todas as cubagens?'),
-          actions: [
-            TextButton(
-              child: const Text('Apenas Novas'),
-              onPressed: () {
-                Navigator.of(dialogCtx).pop();
-                exportService.exportarNovasCubagens(context);
-              },
-            ),
-            ElevatedButton(
-              child: const Text('Todas (Backup)'),
-              onPressed: () {
-                Navigator.of(dialogCtx).pop();
-                exportService.exportarTodasCubagensBackup(context);
-              },
-            ),
-          ],
-        ),
-      );
-    }
+    final exportService = ExportService(); // Supondo que você adaptará este serviço
 
     showModalBottomSheet(
       context: context,
@@ -148,34 +80,24 @@ class _HomePageState extends State<HomePage> {
                   style: Theme.of(context).textTheme.titleLarge),
             ),
             ListTile(
-              leading:
-                  const Icon(Icons.table_rows_outlined, color: Colors.green),
-              title: const Text('Coletas de Parcela (CSV)'),
-              subtitle: const Text('Exporta os dados de parcelas e árvores.'),
+              leading: const Icon(Icons.table_chart_outlined, color: Colors.green),
+              title: const Text('Dados de Vistoria (CSV)'),
+              subtitle: const Text('Exporta os dados de vistorias e focos encontrados.'),
               onTap: () {
                 Navigator.of(ctx).pop(); 
-                _mostrarDialogoParcelas(context);
-              },
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.table_chart_outlined, color: Colors.brown),
-              title: const Text('Cubagens Rigorosas (CSV)'),
-              subtitle: const Text('Exporta os dados de cubagens e seções.'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _mostrarDialogoCubagem(context);
+                // Você precisará criar a função `exportarVistorias` no seu `export_service`
+                // exportService.exportarVistorias(context); 
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Função de exportação em desenvolvimento.')));
               },
             ),
             const Divider(), 
             ListTile(
-              leading: const Icon(Icons.map_outlined, color: Colors.purple),
-              title: const Text('Plano de Amostragem (GeoJSON)'),
-              subtitle:
-                  const Text('Exporta o plano de amostragem do mapa.'),
+              leading: const Icon(Icons.analytics_outlined, color: Colors.purple),
+              title: const Text('Relatório de Análise (PDF)'),
+              subtitle: const Text('Gera um relatório consolidado em PDF.'),
               onTap: () {
-                Navigator.of(ctx).pop();
-                context.read<MapProvider>().exportarPlanoDeAmostragem(context);
+                 Navigator.of(ctx).pop();
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Função de relatório em desenvolvimento.')));
               },
             ),
           ],
@@ -186,7 +108,6 @@ class _HomePageState extends State<HomePage> {
  
   @override
   Widget build(BuildContext context) {
-    // <<< CORREÇÃO: A LÓGICA DO PROVIDER FOI MOVIDA PARA DENTRO DO BUILD >>>
     final licenseProvider = context.watch<LicenseProvider>();
     
     return Scaffold(
@@ -200,33 +121,22 @@ class _HomePageState extends State<HomePage> {
           childAspectRatio: 1.0,
           children: [
             MenuCard(
-              icon: Icons.folder_copy_outlined,
-              label: 'Projetos e Coletas',
+              icon: Icons.biotech_outlined,
+              label: 'Campanhas e Vistorias',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ListaProjetosPage(title: 'Meus Projetos'),
+                  builder: (context) => const ListaCampanhasPage(title: 'Minhas Campanhas'),
                 ),
               ),
             ),
             MenuCard(
-              icon: Icons.map_outlined,
-              label: 'Planejamento de Campo',
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            const SelecaoAtividadeMapaPage()));
-              },
-            ),
-            MenuCard(
-              icon: Icons.insights_outlined,
-              label: 'GeoForest Analista',
-              // <<< CORREÇÃO: LÓGICA DE BLOQUEIO APLICADA NO onTap >>>
+              icon: Icons.analytics_outlined,
+              label: 'Análise de Dados',
               onTap: () {
                 if (licenseProvider.licenseInfo?.canUseAnalysis ?? false) {
-                  _abrirAnalistaDeDados(context);
+                  // Navegar para a página de análise de dados de vigilância
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Página de análise em desenvolvimento.')));
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -238,8 +148,8 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             MenuCard(
-              icon: Icons.download_for_offline_outlined,
-              label: 'Importar Dados (CSV)',
+              icon: Icons.file_download_outlined,
+              label: 'Importar Dados',
               onTap: () => _mostrarDialogoImportacao(context),
             ),
             MenuCard(

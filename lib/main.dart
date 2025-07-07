@@ -1,4 +1,4 @@
-// lib/main.dart (VERSÃO COM SPLASH SCREEN)
+// lib/main.dart (VERSÃO CORRIGIDA E ADAPTADA PARA GEOVIGILÂNCIA)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -15,10 +15,11 @@ import 'package:geovigilancia/pages/menu/equipe_page.dart';
 import 'package:geovigilancia/providers/map_provider.dart';
 import 'package:geovigilancia/providers/team_provider.dart';
 import 'package:geovigilancia/controller/login_controller.dart';
-import 'package:geovigilancia/pages/projetos/lista_projetos_page.dart';
-// <<< MUDANÇA 1 >>> Importar a nova splash page
+// Import da nova página de campanhas
+import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart'; // <<< CORREÇÃO DE CAMINHO
 import 'package:geovigilancia/pages/menu/splash_page.dart';
 import 'package:geovigilancia/providers/license_provider.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +41,7 @@ Future<void> main() async {
     runApp(
       MaterialApp(
         home: ErrorScreen(
-          message: 'Failed to initialize Firebase:\n${e.toString()}',
+          message: 'Falha ao inicializar o Firebase:\n${e.toString()}',
           onRetry: () => main(),
         ),
       ),
@@ -61,19 +62,16 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LicenseProvider())
       ],
       child: MaterialApp(
-        title: 'Geo Forest Analytics',
+        title: 'GeoVigilância',
         debugShowCheckedModeBanner: false,
         theme: _buildThemeData(Brightness.light),
         darkTheme: _buildThemeData(Brightness.dark),
         
-        // <<< MUDANÇA 2 >>> A rota inicial agora é a splash page
         initialRoute: '/', 
         
         routes: {
-          // A rota '/' agora aponta para a SplashPage
           '/': (context) => const SplashPage(),
           
-          // A lógica de verificação de login foi movida para uma nova rota '/auth_check'
           '/auth_check': (context) {
             return Consumer<LoginController>(
               builder: (context, loginController, child) {
@@ -92,19 +90,18 @@ class MyApp extends StatelessWidget {
             );
           },
           
-          // O resto das rotas permanece igual
           '/equipe': (context) => const EquipePage(),
-          '/home': (context) => const HomePage(title: 'Geo Forest Analytics'),
-          '/lista_projetos': (context) => const ListaProjetosPage(title: 'Meus Projetos'),
+          '/home': (context) => const HomePage(title: 'GeoVigilância'), // Nenhuma mudança necessária aqui se a classe for 'HomePage'
+          '/lista_campanhas': (context) => const ListaCampanhasPage(title: 'Minhas Campanhas'),
         },
         
         navigatorObservers: [MapProvider.routeObserver],
         
         builder: (context, child) {
           ErrorWidget.builder = (FlutterErrorDetails details) {
-            debugPrint('Caught a Flutter error: ${details.exception}');
+            debugPrint('Erro de Flutter capturado: ${details.exception}');
             return ErrorScreen(
-              message: 'An unexpected error occurred.\nPlease restart the app.',
+              message: 'Ocorreu um erro inesperado.\nPor favor, reinicie o aplicativo.',
               onRetry: null,
             );
           };
@@ -118,33 +115,49 @@ class MyApp extends StatelessWidget {
   }
 
   ThemeData _buildThemeData(Brightness brightness) {
-    final baseColor = const Color(0xFF617359);
+    final baseColor = brightness == Brightness.light ? const Color(0xFF0D47A1) : Colors.blue.shade800;
+    final secondaryColor = Colors.amber.shade700;
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
         seedColor: baseColor,
         brightness: brightness,
+        primary: baseColor,
+        secondary: secondaryColor,
+        error: Colors.red.shade800,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: brightness == Brightness.light ? baseColor : Colors.grey[900],
         foregroundColor: Colors.white,
-        elevation: 0,
+        elevation: 2,
+        centerTitle: true,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: baseColor,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
       ),
+      // <<< CORREÇÃO AQUI >>>
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        clipBehavior: Clip.antiAlias,
       ),
-      textTheme: const TextTheme(
-        headlineMedium: TextStyle(color: Color(0xFF1D4433), fontWeight: FontWeight.bold),
-        bodyLarge: TextStyle(color: Color(0xFF1D4433)),
-        bodyMedium: TextStyle(color: Color(0xFF1D4433)),
+      textTheme: TextTheme(
+        headlineMedium: TextStyle(color: brightness == Brightness.light ? baseColor : Colors.white, fontWeight: FontWeight.bold),
+        titleLarge: TextStyle(color: brightness == Brightness.light ? baseColor : Colors.white),
+        bodyLarge: TextStyle(color: brightness == Brightness.light ? Colors.black87 : Colors.white70),
+        bodyMedium: TextStyle(color: brightness == Brightness.light ? Colors.black54 : Colors.white60),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        border: const OutlineInputBorder(),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: baseColor, width: 2.0),
+        ),
       ),
     );
   }
@@ -154,7 +167,8 @@ class ErrorScreen extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  const ErrorScreen({super.key, required this.message, this.onRetry});
+  // <<< CORREÇÃO AQUI: 'const' removido >>>
+  ErrorScreen({super.key, required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -186,11 +200,11 @@ class ErrorScreen extends StatelessWidget {
               if (onRetry != null)
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF617359),
+                    backgroundColor: Theme.of(context).colorScheme.primary, // Agora isso funciona
                     foregroundColor: Colors.white,
                   ),
                   onPressed: onRetry,
-                  child: const Text('Try Again'),
+                  child: const Text('Tentar Novamente'),
                 ),
             ],
           ),

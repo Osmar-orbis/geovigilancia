@@ -1,7 +1,7 @@
 // lib/pages/menu/register_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:geoforestcoletor/services/auth_service.dart';
+import 'package:geovigilancia/services/auth_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});

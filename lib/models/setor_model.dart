@@ -1,26 +1,20 @@
-// lib/models/quarteirao_model.dart
+// lib/models/setor_model.dart (NOVO ARQUIVO CORRIGIDO)
 
-class Quarteirao {
+class Setor {
   final int? id;
   
-  // <<< MUDANÇA: Chaves estrangeiras renomeadas para refletir a nova hierarquia (Bairro) >>>
+  // Chaves estrangeiras que ligam este setor a um bairro específico de uma atividade
   final String bairroId; 
   final int bairroAtividadeId;
   
-  // Propriedades do Quarteirão
+  // Propriedades do Setor
   final String nome; // Ex: "001", "15-A", "Q-27"
   final double? areaHa; // Área em hectares, pode ser útil para densidade
   
-  // <<< REMOÇÃO: Campos florestais removidos >>>
-  // final double? idadeAnos;
-  // final String? especie;
-  // final String? espacamento;
-  // double? volumeTotalTalhao;
-
-  // Campo para exibição na UI (ex: "Bairro Centro")
+  // Campo para exibição na UI (ex: "Bairro Centro"), não salvo no banco
   final String? bairroNome; 
 
-  Quarteirao({
+  Setor({
     this.id,
     required this.bairroId,
     required this.bairroAtividadeId,
@@ -29,7 +23,8 @@ class Quarteirao {
     this.bairroNome,
   });
 
-  Quarteirao copyWith({
+  // copyWith é útil para criar cópias do objeto com pequenas alterações
+  Setor copyWith({
     int? id,
     String? bairroId,
     int? bairroAtividadeId,
@@ -37,7 +32,7 @@ class Quarteirao {
     double? areaHa,
     String? bairroNome,
   }) {
-    return Quarteirao(
+    return Setor(
       id: id ?? this.id,
       bairroId: bairroId ?? this.bairroId,
       bairroAtividadeId: bairroAtividadeId ?? this.bairroAtividadeId,
@@ -47,6 +42,7 @@ class Quarteirao {
     );
   }
 
+  // Mapeia o objeto para um formato que o SQFlite entende
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -54,15 +50,14 @@ class Quarteirao {
       'bairroAtividadeId': bairroAtividadeId,
       'nome': nome,
       'areaHa': areaHa,
-      // Campos removidos não são mais mapeados
     };
   }
 
-  factory Quarteirao.fromMap(Map<String, dynamic> map) {
-    return Quarteirao(
+  // Cria um objeto Setor a partir de um mapa vindo do SQFlite
+  factory Setor.fromMap(Map<String, dynamic> map) {
+    return Setor(
       id: map['id'],
-      // <<< MUDANÇA: Lendo as chaves renomeadas do banco >>>
-      bairroId: map['bairroId'] ?? map['fazendaId'], // Mantém compatibilidade
+      bairroId: map['bairroId'] ?? map['fazendaId'], // Mantém compatibilidade com nomes antigos
       bairroAtividadeId: map['bairroAtividadeId'] ?? map['fazendaAtividadeId'], // Mantém compatibilidade
       nome: map['nome'],
       areaHa: map['areaHa'],

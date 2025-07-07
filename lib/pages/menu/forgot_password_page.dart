@@ -1,6 +1,8 @@
-// lib/pages/forgot_password_page.dart
+// lib/pages/menu/forgot_password_page.dart (ADAPTADO PARA GEOVIGILÂNCIA)
+
 import 'package:flutter/material.dart';
-import 'package:geoforestcoletor/services/auth_service.dart';
+// <<< CORREÇÃO 1: Caminho do import atualizado >>>
+import 'package:geovigilancia/services/auth_service.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -33,7 +35,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Email de redefinição enviado!'),
+            content: Text('E-mail de redefinição enviado! Verifique sua caixa de entrada.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -55,11 +57,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    // <<< CORREÇÃO 2: Usar o tema do app para consistência visual >>>
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recuperar Senha'),
-        backgroundColor: const Color(0xFF1D4433),
-        foregroundColor: Colors.white,
+        // A cor do AppBar já é definida pelo tema global em main.dart
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -67,24 +71,25 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           key: _formKey,
           child: Column(
             children: [
-              const Text(
-                'Digite seu email para receber o link de redefinição de senha.',
-                style: TextStyle(fontSize: 16, color: Color(0xFF617359)),
+              Text(
+                'Digite seu e-mail para receber o link de redefinição de senha.',
+                style: theme.textTheme.bodyLarge,
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined, color: Color(0xFF617359)),
+                decoration: InputDecoration(
+                  labelText: 'E-mail',
+                  prefixIcon: Icon(Icons.email_outlined, color: theme.colorScheme.primary),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Informe seu email';
+                    return 'Informe seu e-mail';
                   }
                   if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                    return 'Informe um email válido';
+                    return 'Informe um e-mail válido';
                   }
                   return null;
                 },
@@ -95,12 +100,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: _isSending ? null : _sendResetEmail,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1D4433),
-                    foregroundColor: Colors.white,
-                  ),
+                  // O estilo do botão já é definido pelo tema global
                   child: _isSending
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(color: Colors.white),
+                        )
                       : const Text('Enviar'),
                 ),
               ),

@@ -1,17 +1,21 @@
+// lib/pages/atividades/detalhes_atividade_page.dart (VERSÃO CORRIGIDA E ADAPTADA PARA GEOVIGILÂNCIA)
+
 // lib/pages/atividades/detalhes_atividade_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_slidable/flutter_slidable.dart'; // <<< 1. IMPORTAR SLIDABLE
-import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
+
+// Importações de modelos e páginas
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
 import 'package:geovigilancia/models/atividade_model.dart';
-import 'package:geovigilancia/models/fazenda_model.dart';
-import 'package:geovigilancia/models/talhao_model.dart';
-import 'package:geovigilancia/pages/fazenda/form_fazenda_page.dart';
-import 'package:geovigilancia/pages/fazenda/detalhes_fazenda_page.dart';
+import 'package:geovigilancia/models/bairro_model.dart';
 import 'package:geovigilancia/pages/menu/home_page.dart';
-import 'package:geovigilancia/pages/dashboard/relatorio_comparativo_page.dart';
+import 'package:geovigilancia/pages/bairro/form_bairro_page.dart';
+
+// <<< ADICIONE ESTA LINHA ABAIXO >>>
+import 'package:geovigilancia/pages/bairro/detalhes_bairro_page.dart'; 
+
 
 class DetalhesAtividadePage extends StatefulWidget {
   final Atividade atividade;
@@ -22,63 +26,61 @@ class DetalhesAtividadePage extends StatefulWidget {
 }
 
 class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
-  late Future<List<Fazenda>> _fazendasFuture;
+  // <<< CORREÇÃO 1: O Future agora busca uma lista de Bairro >>>
+  late Future<List<Bairro>> _bairrosFuture;
   final dbHelper = DatabaseHelper.instance;
 
   bool _isSelectionMode = false;
-  final Set<String> _selectedFazendas = {};
-
-  bool get _isAtividadeDeInventario {
-    final tipo = widget.atividade.tipo.toLowerCase();
-    return tipo.contains("ipc") || tipo.contains("ifc") || tipo.contains("inventário");
-  }
+  // O Set agora guarda o ID do bairro (que é uma String)
+  final Set<String> _selectedBairros = {};
 
   @override
   void initState() {
     super.initState();
-    _carregarFazendas();
+    _carregarBairros();
   }
 
-  void _carregarFazendas() {
+  void _carregarBairros() {
     if (mounted) {
       setState(() {
         _isSelectionMode = false;
-        _selectedFazendas.clear();
-        _fazendasFuture = dbHelper.getFazendasDaAtividade(widget.atividade.id!);
+        _selectedBairros.clear();
+        // <<< CORREÇÃO 2: Chama o método correto do DB Helper >>>
+        _bairrosFuture = dbHelper.getBairrosDaAtividade(widget.atividade.id!);
       });
     }
   }
 
-  void _toggleSelectionMode(String? fazendaId) {
+  void _toggleSelectionMode(String? bairroId) {
     setState(() {
       _isSelectionMode = !_isSelectionMode;
-      _selectedFazendas.clear();
-      if (_isSelectionMode && fazendaId != null) {
-        _selectedFazendas.add(fazendaId);
+      _selectedBairros.clear();
+      if (_isSelectionMode && bairroId != null) {
+        _selectedBairros.add(bairroId);
       }
     });
   }
 
-  void _onItemSelected(String fazendaId) {
+  void _onItemSelected(String bairroId) {
     setState(() {
-      if (_selectedFazendas.contains(fazendaId)) {
-        _selectedFazendas.remove(fazendaId);
-        if (_selectedFazendas.isEmpty) {
+      if (_selectedBairros.contains(bairroId)) {
+        _selectedBairros.remove(bairroId);
+        if (_selectedBairros.isEmpty) {
           _isSelectionMode = false;
         }
       } else {
-        _selectedFazendas.add(fazendaId);
+        _selectedBairros.add(bairroId);
       }
     });
   }
   
-  // Função de exclusão agora recebe a fazenda diretamente
-  Future<void> _deleteFazenda(Fazenda fazenda) async {
+  // <<< CORREÇÃO 3: Lógica de exclusão adaptada para Bairro >>>
+  Future<void> _deleteBairro(Bairro bairro) async {
      final bool? confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar Exclusão'),
-        content: Text('Tem certeza que deseja apagar a fazenda "${fazenda.nome}" e todos os seus dados? Esta ação não pode ser desfeita.'),
+        content: Text('Tem certeza que deseja apagar o bairro "${bairro.nome}" e todos os seus dados? Esta ação não pode ser desfeita.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
           FilledButton(
@@ -91,95 +93,56 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
     );
 
     if (confirmar == true && mounted) {
-      await dbHelper.deleteFazenda(fazenda.id, fazenda.atividadeId);
+      await dbHelper.deleteBairro(bairro.id, bairro.atividadeId);
       
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Fazenda apagada.'),
+          content: Text('Bairro apagado.'),
           backgroundColor: Colors.red));
-      _carregarFazendas();
+      _carregarBairros();
     }
   }
 
-  void _navegarParaNovaFazenda() async {
-    final bool? fazendaCriada = await Navigator.push<bool>(
+  // <<< CORREÇÃO 4: Navegação adaptada para Bairro >>>
+  void _navegarParaNovoBairro() async {
+    final bool? bairroCriado = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => FormFazendaPage(atividadeId: widget.atividade.id!),
+        builder: (context) => FormBairroPage(atividadeId: widget.atividade.id!),
       ),
     );
-    if (fazendaCriada == true && mounted) {
-      _carregarFazendas();
+    if (bairroCriado == true && mounted) {
+      _carregarBairros();
     }
   }
 
-  // <<< 2. NOVA FUNÇÃO PARA NAVEGAR PARA EDIÇÃO >>>
-  void _navegarParaEdicaoFazenda(Fazenda fazenda) async {
-    final bool? fazendaEditada = await Navigator.push<bool>(
+  void _navegarParaEdicaoBairro(Bairro bairro) async {
+    final bool? bairroEditado = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => FormFazendaPage(
-          atividadeId: fazenda.atividadeId,
-          fazendaParaEditar: fazenda, // Passa a fazenda para o formulário
+        builder: (context) => FormBairroPage(
+          atividadeId: bairro.atividadeId,
+          bairroParaEditar: bairro,
         ),
       ),
     );
-    if (fazendaEditada == true && mounted) {
-      _carregarFazendas();
+    if (bairroEditado == true && mounted) {
+      _carregarBairros();
     }
   }
 
-  void _navegarParaDetalhesFazenda(Fazenda fazenda) {
+  void _navegarParaDetalhesBairro(Bairro bairro) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => DetalhesFazendaPage(
-        fazenda: fazenda,
+      MaterialPageRoute(builder: (context) => DetalhesBairroPage(
+        bairro: bairro,
         atividade: widget.atividade,
       )),
-    ).then((_) => _carregarFazendas());
-  }
-
-  Future<void> _navegarParaGeracaoDePlano() async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Buscando talhões da atividade...'),
-      duration: Duration(seconds: 2),
-    ));
-
-    final fazendas = await dbHelper.getFazendasDaAtividade(widget.atividade.id!);
-
-    final currentContext = context;
-    if (!mounted) return;
-
-    if (fazendas.isEmpty) {
-      ScaffoldMessenger.of(currentContext).showSnackBar(const SnackBar(content: Text('Nenhuma fazenda encontrada nesta atividade.')));
-      return;
-    }
-
-    List<Talhao> todosOsTalhoes = [];
-    for (final fazenda in fazendas) {
-      final talhoesDaFazenda = await dbHelper.getTalhoesDaFazenda(fazenda.id, fazenda.atividadeId);
-      todosOsTalhoes.addAll(talhoesDaFazenda);
-    }
-    
-    if (!mounted) return;
-
-    if (todosOsTalhoes.isEmpty) {
-      ScaffoldMessenger.of(currentContext).showSnackBar(const SnackBar(content: Text('Nenhum talhão encontrado para gerar o plano.')));
-      return;
-    }
-    
-    Navigator.push(
-      currentContext,
-      MaterialPageRoute(
-        builder: (context) => RelatorioComparativoPage(
-          talhoesSelecionados: todosOsTalhoes,
-        ),
-      ),
-    );
+    ).then((_) => _carregarBairros());
   }
 
   AppBar _buildSelectionAppBar() {
     return AppBar(
-      title: Text('${_selectedFazendas.length} selecionada(s)'),
+      title: Text('${_selectedBairros.length} selecionado(s)'),
       leading: IconButton(
         icon: const Icon(Icons.close),
         onPressed: () => _toggleSelectionMode(null),
@@ -187,10 +150,8 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
       actions: [
         IconButton(
           icon: const Icon(Icons.delete_outline),
-          tooltip: 'Apagar selecionadas',
+          tooltip: 'Apagar selecionados',
           onPressed: () { 
-            // A função de apagar em massa não foi pedida, então desabilitamos por enquanto.
-            // Para reabilitar, seria necessário implementar _deleteSelectedFazendas()
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Use o deslize para apagar individualmente.')));
            },
         ),
@@ -206,7 +167,7 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
           icon: const Icon(Icons.home_outlined),
           tooltip: 'Voltar para o Início',
           onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomePage(title: 'Geo Forest Analytics')),
+            MaterialPageRoute(builder: (context) => const HomePage(title: 'GeoVigilância')),
             (Route<dynamic> route) => false,
           ),
         ),
@@ -235,7 +196,7 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
                       style: Theme.of(context).textTheme.bodyLarge),
                   const SizedBox(height: 8),
                   Text('Data de Criação: ${DateFormat('dd/MM/yyyy').format(widget.atividade.dataCriacao)}',
-                      style: Theme.of(context).textTheme.bodyLarge),
+                      style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
             ),
@@ -244,30 +205,30 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
             child: Text(
-              "Fazendas da Atividade",
+              "Bairros da Atividade", // Título adaptado
               style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Theme.of(context).colorScheme.primary),
             ),
           ),
 
           Expanded(
-            child: FutureBuilder<List<Fazenda>>(
-              future: _fazendasFuture,
+            child: FutureBuilder<List<Bairro>>( // <<< CORREÇÃO: Tipagem para Bairro >>>
+              future: _bairrosFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('Erro ao carregar fazendas: ${snapshot.error}'));
+                  return Center(child: Text('Erro ao carregar bairros: ${snapshot.error}'));
                 }
 
-                final fazendas = snapshot.data ?? [];
+                final bairros = snapshot.data ?? [];
 
-                if (fazendas.isEmpty) {
+                if (bairros.isEmpty) {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
-                        'Nenhuma fazenda encontrada.\nClique no botão "+" para adicionar a primeira.',
+                        'Nenhum bairro encontrado.\nClique no botão "+" para adicionar o primeiro.',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                       ),
@@ -277,18 +238,17 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
 
                 return ListView.builder(
                   padding: const EdgeInsets.only(bottom: 80),
-                  itemCount: fazendas.length,
+                  itemCount: bairros.length,
                   itemBuilder: (context, index) {
-                    final fazenda = fazendas[index];
-                    final isSelected = _selectedFazendas.contains(fazenda.id);
-                    // <<< 3. ENVOLVER O CARD COM O SLIDABLE >>>
+                    final bairro = bairros[index];
+                    final isSelected = _selectedBairros.contains(bairro.id);
                     return Slidable(
-                      key: ValueKey(fazenda.id),
+                      key: ValueKey(bairro.id),
                       startActionPane: ActionPane(
                         motion: const DrawerMotion(),
                         children: [
                           SlidableAction(
-                            onPressed: (context) => _navegarParaEdicaoFazenda(fazenda),
+                            onPressed: (context) => _navegarParaEdicaoBairro(bairro),
                             backgroundColor: Colors.blue.shade700,
                             foregroundColor: Colors.white,
                             icon: Icons.edit_outlined,
@@ -300,7 +260,7 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
                         motion: const BehindMotion(),
                         children: [
                           SlidableAction(
-                            onPressed: (context) => _deleteFazenda(fazenda),
+                            onPressed: (context) => _deleteBairro(bairro),
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
                             icon: Icons.delete_outline,
@@ -314,23 +274,23 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
                         child: ListTile(
                           onTap: () {
                             if (_isSelectionMode) {
-                              _onItemSelected(fazenda.id);
+                              _onItemSelected(bairro.id);
                             } else {
-                              _navegarParaDetalhesFazenda(fazenda);
+                              _navegarParaDetalhesBairro(bairro);
                             }
                           },
                           onLongPress: () {
                             if (!_isSelectionMode) {
-                              _toggleSelectionMode(fazenda.id);
+                              _toggleSelectionMode(bairro.id);
                             }
                           },
                           leading: CircleAvatar(
                             backgroundColor: isSelected ? Theme.of(context).colorScheme.primary : null,
-                            child: Icon(isSelected ? Icons.check : Icons.agriculture_outlined),
+                            // Ícone adaptado para bairro/localidade
+                            child: Icon(isSelected ? Icons.check : Icons.location_city_outlined),
                           ),
-                          title: Text(fazenda.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('ID: ${fazenda.id}\n${fazenda.municipio} - ${fazenda.estado}'),
-                          // <<< 4. REMOVER O ÍCONE DE LIXEIRA DO TRAILING >>>
+                          title: Text(bairro.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text('ID: ${bairro.id}\n${bairro.municipio} - ${bairro.estado}'),
                           trailing: const Icon(Icons.swap_horiz_outlined, color: Colors.grey),
                           selected: isSelected,
                         ),
@@ -343,25 +303,14 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
           ),
         ],
       ),
+      // SpeedDial removido, pois a única ação agora é adicionar bairro
       floatingActionButton: _isSelectionMode 
         ? null 
-        : SpeedDial(
-            icon: Icons.add,
-            activeIcon: Icons.close,
-            children: [
-              if (_isAtividadeDeInventario)
-                SpeedDialChild(
-                  child: const Icon(Icons.playlist_add_check_outlined),
-                  label: 'Gerar Plano de Cubagem',
-                  onTap: _navegarParaGeracaoDePlano,
-                ),
-              SpeedDialChild(
-                child: const Icon(Icons.add_business_outlined),
-                label: 'Nova Fazenda',
-                onTap: _navegarParaNovaFazenda,
-              ),
-            ],
-        ),
+        : FloatingActionButton.extended(
+            icon: const Icon(Icons.add_business_outlined),
+            label: const Text('Novo Bairro'),
+            onPressed: _navegarParaNovoBairro,
+          ),
     );
   }
 }

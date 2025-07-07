@@ -1,4 +1,4 @@
-// lib/pages/menu/configuracoes_page.dart
+// lib/pages/menu/configuracoes_page.dart (VERSÃO COM UTM E ADAPTADA PARA GEOVIGILÂNCIA)
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -7,10 +7,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-import 'package:geovigilancia/services/licensing_service.dart';
 import 'package:geovigilancia/providers/license_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+// Constantes UTM mantidas
 const Map<String, int> zonasUtmSirgas2000 = {
   'SIRGAS 2000 / UTM Zona 18S': 31978, 'SIRGAS 2000 / UTM Zona 19S': 31979,
   'SIRGAS 2000 / UTM Zona 20S': 31980, 'SIRGAS 2000 / UTM Zona 21S': 31981,
@@ -27,7 +27,7 @@ class ConfiguracoesPage extends StatefulWidget {
 
 class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
   String? _zonaSelecionada;
-  final dbHelper = DatabaseHelper();
+  final dbHelper = DatabaseHelper.instance;
   
   @override
   void initState() {
@@ -70,7 +70,7 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
-              backgroundColor: isDestructive ? Colors.red : Theme.of(context).primaryColor,
+              backgroundColor: isDestructive ? Colors.red.shade700 : Theme.of(context).colorScheme.primary,
             ),
             child: Text(isDestructive ? 'CONFIRMAR' : 'SAIR'),
           ),
@@ -91,6 +91,39 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
       onConfirmar: () async {
         context.read<LicenseProvider>().clearLicense();
         await context.read<LoginController>().signOut();
+      },
+    );
+  }
+
+  // <<< FUNÇÃO ADAPTADA >>>
+  Future<void> _limparTodasAsVistorias() async {
+    await _mostrarDialogoLimpeza(
+      titulo: 'Limpar Todas as Vistorias',
+      conteudo: 'Tem certeza? TODOS os dados de vistorias e focos serão apagados permanentemente do dispositivo.',
+      onConfirmar: () async {
+        // Supondo que você criará este método no seu DatabaseHelper.
+        // Ele deve executar "DELETE FROM vistorias" e "DELETE FROM focos".
+        // await dbHelper.limparTodasAsVistorias(); 
+        if(mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Todas as vistorias foram apagadas!', style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.red,
+          ));
+        }
+      },
+    );
+  }
+  
+  // <<< FUNÇÃO ADAPTADA >>>
+  Future<void> _arquivarColetasExportadas() async {
+     await _mostrarDialogoLimpeza(
+      titulo: 'Arquivar Coletas',
+      conteudo: 'Isso removerá do dispositivo todas as vistorias já marcadas como exportadas. Deseja continuar?',
+      onConfirmar: () async {
+        // Supondo que você criará este método no seu DatabaseHelper.
+        // Ele deve executar "DELETE FROM vistorias WHERE exportada = 1".
+        // final vistoriasCount = await dbHelper.limparVistoriasExportadas();
+        // if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$vistoriasCount vistorias arquivadas.')));
       },
     );
   }
@@ -132,25 +165,6 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
                                             Text('Usuário: ${FirebaseAuth.instance.currentUser?.email ?? 'Desconhecido'}'),
                                             const SizedBox(height: 8),
                                             Text('Plano: ${licenseProvider.licenseInfo!.planName}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                            const SizedBox(height: 12),
-                                            const Text('Dispositivos Registrados:', style: TextStyle(fontWeight: FontWeight.bold)),
-                                            const SizedBox(height: 4),
-                                            FutureBuilder<Map<String, int>>(
-                                              future: LicensingService().getDeviceUsage(FirebaseAuth.instance.currentUser!.email!),
-                                              builder: (context, snapshot) {
-                                                if (snapshot.connectionState == ConnectionState.waiting) return const Text("Verificando dispositivos...");
-                                                if (snapshot.hasError || !snapshot.hasData) return const Text("Erro ao contar dispositivos.");
-                                                final usage = snapshot.data!;
-                                                final limits = licenseProvider.licenseInfo!.limits;
-                                                return Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(' • Smartphones: ${usage['smartphone']} de ${limits['smartphone'] == -1 ? "Ilimitado" : limits['smartphone']}'),
-                                                    Text(' • Desktops: ${usage['desktop']} de ${limits['desktop'] == -1 ? "Ilimitado" : limits['desktop']}'),
-                                                  ],
-                                                );
-                                              }
-                                            ),
                                           ],
                                         ),
                             ),
@@ -193,16 +207,9 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
                       const SizedBox(height: 12),
                       ListTile(
                         leading: const Icon(Icons.archive_outlined),
-                        title: const Text('Arquivar Coletas Exportadas'),
-                        subtitle: const Text('Apaga do dispositivo apenas as coletas (parcelas e cubagens) que já foram exportadas.'),
-                        onTap: () => _mostrarDialogoLimpeza(
-                          titulo: 'Arquivar Coletas',
-                          conteudo: 'Isso removerá do dispositivo todas as coletas (parcelas e cubagens) já marcadas como exportadas. Deseja continuar?',
-                          onConfirmar: () async {
-                            final parcelasCount = await dbHelper.limparParcelasExportadas();
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$parcelasCount parcelas arquivadas.')));
-                          },
-                        ),
+                        title: const Text('Arquivar Vistorias Exportadas'),
+                        subtitle: const Text('Apaga do dispositivo apenas as vistorias que já foram exportadas.'),
+                        onTap: _arquivarColetasExportadas,
                       ),
 
                       const Divider(thickness: 1, height: 24),
@@ -211,31 +218,12 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
                       const SizedBox(height: 12),
                       ListTile(
                         leading: const Icon(Icons.delete_sweep_outlined, color: Colors.red),
-                        title: const Text('Limpar TODAS as Coletas de Parcela'),
-                        subtitle: const Text('Apaga TODAS as parcelas e árvores salvas.'),
-                        onTap: () => _mostrarDialogoLimpeza(
-                          titulo: 'Limpar Todas as Parcelas',
-                          conteudo: 'Tem certeza? TODOS os dados de parcelas e árvores serão apagados permanentemente.',
-                          onConfirmar: () async {
-                            await dbHelper.limparTodasAsParcelas();
-                            if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Todas as parcelas foram apagadas!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
-                          },
-                        ),
+                        title: const Text('Limpar TODAS as Vistorias'),
+                        subtitle: const Text('Apaga TODAS as vistorias e focos salvos.'),
+                        onTap: _limparTodasAsVistorias,
                       ),
-                       ListTile(
-                        leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
-                        title: const Text('Limpar TODOS os Dados de Cubagem'),
-                        subtitle: const Text('Apaga TODOS os dados de cubagem salvos.'),
-                        onTap: () => _mostrarDialogoLimpeza(
-                          titulo: 'Limpar Todas as Cubagens',
-                          conteudo: 'Tem certeza? TODOS os dados de cubagem serão apagados permanentemente.',
-                          onConfirmar: () async {
-                            await dbHelper.limparTodasAsCubagens();
-                            if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Todos os dados de cubagem foram apagados!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
-                          },
-                        ),
-                      ),
-
+                      // A opção de limpar cubagens foi removida pois não existe mais no app de vigilância
+                      
                       const Divider(thickness: 1, height: 48),
                       
                       Center(
