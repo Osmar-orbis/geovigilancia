@@ -1,4 +1,4 @@
-// lib/pages/menu/map_import_page.dart (CORRIGIDO)
+// lib/pages/menu/map_import_page.dart (CORRIGIDO PARA MOSTRAR PONTOS E POLÍGONOS)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +9,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/pages/vistorias/form_vistoria_page.dart';
 
 
@@ -90,6 +89,8 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(resultMessage), duration: const Duration(seconds: 5)));
     
+    // <<< LÓGICA DE ZOOM CORRIGIDA >>>
+    // Prioriza o zoom nos polígonos, mas se não houver, foca nos pontos.
     if (provider.polygons.isNotEmpty) {
       _mapController.fitCamera(CameraFit.bounds(
           bounds: LatLngBounds.fromPoints(provider.polygons.expand((p) => p.points).toList()),
@@ -111,7 +112,8 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
     final density = await _showDensityDialog();
     if (density == null || !mounted) return;
     
-    final resultMessage = await provider.gerarAmostrasParaAtividade(hectaresPerSample: density);
+    // A função no provider agora é `gerarVistoriasParaAtividade`
+    final resultMessage = await provider.gerarVistoriasParaAtividade(imoveisPorHectare: density);
     
     if(mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(resultMessage), duration: const Duration(seconds: 4)));
@@ -204,7 +206,7 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
       actions: [
         IconButton(
           icon: const Icon(Icons.share_outlined),
-          onPressed: mapProvider.isLoading ? null : () => context.read<MapProvider>().exportarPlanoDeAmostragem(context),
+          onPressed: mapProvider.isLoading ? null : () => context.read<MapProvider>().exportarPlanoDeVistoria(context),
           tooltip: 'Exportar Plano de Trabalho',
         ),
         if(mapProvider.polygons.isNotEmpty)
@@ -266,39 +268,45 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
               TileLayer(
                   urlTemplate: mapProvider.currentTileUrl,
                   userAgentPackageName: 'com.example.geovigilancia'),
+              
+              // <<< MUDANÇA PRINCIPAL AQUI: Ambas as camadas são renderizadas se existirem >>>
+              // 1. Camada de Polígonos
               if (mapProvider.polygons.isNotEmpty)
                 PolygonLayer(polygons: mapProvider.polygons),
               
-              MarkerLayer(
-                markers: mapProvider.samplePoints.map((samplePoint) {
-                  final color = _getMarkerColor(samplePoint.status);
-                  final textColor = _getMarkerTextColor(samplePoint.status);
-                  return Marker(
-                    width: 40.0, height: 40.0, point: samplePoint.position,
-                    child: GestureDetector(
-                      onTap: () async {
-                        if (!mounted) return;
-                        final dbId = samplePoint.data['dbId'] as int?;
-                        if (dbId == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: ID da vistoria não encontrado.')));
-                          return;
-                        }
-                        final vistoria = await DatabaseHelper.instance.getVistoriaById(dbId);
-                        if (!mounted || vistoria == null) return;
+              // 2. Camada de Marcadores (Pontos)
+              if (mapProvider.samplePoints.isNotEmpty)
+                MarkerLayer(
+                  markers: mapProvider.samplePoints.map((samplePoint) {
+                    final color = _getMarkerColor(samplePoint.status);
+                    final textColor = _getMarkerTextColor(samplePoint.status);
+                    return Marker(
+                      width: 40.0, height: 40.0, point: samplePoint.position,
+                      child: GestureDetector(
+                        onTap: () async {
+                          if (!mounted) return;
+                          final dbId = samplePoint.data['dbId'] as int?;
+                          if (dbId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: ID da vistoria não encontrado.')));
+                            return;
+                          }
+                          final vistoria = await DatabaseHelper.instance.getVistoriaById(dbId);
+                          if (!mounted || vistoria == null) return;
 
-                        await Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(builder: (context) => FormVistoriaPage(vistoriaParaEditar: vistoria))
-                        );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(color: color, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4, offset: const Offset(2, 2))]),
-                        child: Center(child: Text(samplePoint.id.toString(), style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14))),
+                          await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(builder: (context) => FormVistoriaPage(vistoriaParaEditar: vistoria))
+                          );
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(color: color, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4, offset: const Offset(2, 2))]),
+                          child: Center(child: Text(samplePoint.id.toString(), style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14))),
+                        ),
                       ),
-                    ),
-                  );
-                }).toList(),
-              ),
+                    );
+                  }).toList(),
+                ),
+              // <<< FIM DA MUDANÇA PRINCIPAL >>>
               
               if (isDrawing && mapProvider.drawnPoints.isNotEmpty)
                 PolylineLayer(polylines: [ Polyline(points: mapProvider.drawnPoints, strokeWidth: 2.0, color: Colors.red.withOpacity(0.8)), ]),

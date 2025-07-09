@@ -3,10 +3,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_core/firebase_core.dart';
+// Os imports do Firebase são comentados para o bypass
+// import 'package:firebase_core/firebase_core.dart';
+// import 'firebase_options.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:provider/provider.dart';
-import 'firebase_options.dart';
+
 
 // Importações do Projeto
 import 'package:geovigilancia/pages/menu/home_page.dart';
@@ -15,7 +17,6 @@ import 'package:geovigilancia/pages/menu/equipe_page.dart';
 import 'package:geovigilancia/providers/map_provider.dart';
 import 'package:geovigilancia/providers/team_provider.dart';
 import 'package:geovigilancia/controller/login_controller.dart';
-// Import da nova página de campanhas
 import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart';
 import 'package:geovigilancia/pages/menu/splash_page.dart';
 import 'package:geovigilancia/providers/license_provider.dart';
@@ -32,6 +33,8 @@ Future<void> main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
+  // Bloco Firebase comentado para bypass
+  /*
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -47,7 +50,15 @@ Future<void> main() async {
       ),
     );
   }
-}
+  */
+
+  // <<< CORREÇÃO APLICADA AQUI >>>
+  // Adiciona a chamada runApp() para iniciar o aplicativo,
+  // já que ela foi comentada dentro do bloco try-catch.
+  runApp(const MyApp());
+
+} // <<< A FUNÇÃO main() TERMINA AQUI. A CLASSE MyApp FICA FORA.
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -75,6 +86,9 @@ class MyApp extends StatelessWidget {
           '/auth_check': (context) {
             return Consumer<LoginController>(
               builder: (context, loginController, child) {
+                // Para pular o login durante os testes, descomente a linha abaixo:
+                // return const EquipePage(); 
+
                 if (!loginController.isInitialized) {
                   return const Scaffold(
                     body: Center(child: CircularProgressIndicator()),
@@ -148,7 +162,7 @@ class MyApp extends StatelessWidget {
       ),
       textTheme: TextTheme(
         headlineMedium: TextStyle(color: brightness == Brightness.light ? baseColor : Colors.white, fontWeight: FontWeight.bold),
-        titleLarge: TextStyle(color: brightness == Brightness.light ? baseColor : Colors.white),
+        titleLarge: TextStyle(color: brightness == Brightness.light ? Colors.black87 : Colors.white), // Ajuste para melhor contraste
         bodyLarge: TextStyle(color: brightness == Brightness.light ? Colors.black87 : Colors.white70),
         bodyMedium: TextStyle(color: brightness == Brightness.light ? Colors.black54 : Colors.white60),
       ),
@@ -166,7 +180,7 @@ class ErrorScreen extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  ErrorScreen({super.key, required this.message, this.onRetry});
+  const ErrorScreen({super.key, required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -181,7 +195,7 @@ class ErrorScreen extends StatelessWidget {
               Icon(Icons.error_outline, color: Colors.red[700], size: 60),
               const SizedBox(height: 20),
               Text(
-                'Application Error',
+                'Erro na Aplicação',
                 style: TextStyle(
                   color: Colors.red[700],
                   fontSize: 24,

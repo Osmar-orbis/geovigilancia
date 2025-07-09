@@ -1,31 +1,27 @@
-// lib/services/pdf_service.dart (ADAPTADO PARA GEOVIGILÂNCIA)
+// lib/services/pdf_service.dart (VERSÃO CORRIGIDA COM IMPORT)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
 // <<< MUDANÇA: Imports adaptados para os novos modelos >>>
-import 'package:geovigilancia/models/bairro_model.dart';
-import 'package:geovigilancia/models/setor_model.dart';
 import 'package:geovigilancia/models/vistoria_model.dart';
+import 'package:geovigilancia/models/foco_model.dart'; // <<< CORREÇÃO AQUI: IMPORT ADICIONADO
 import 'package:geovigilancia/services/analysis_service.dart';
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:path_provider_android/path_provider_android.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:permission_handler/permission_handler.dart';
-
 import 'package:geovigilancia/models/analise_epidemiologica_result_model.dart';
 
-
 class PdfService {
-
   // A lógica de permissão e salvamento permanece a mesma
   Future<bool> _requestPermission() async {
     Permission permission;
     if (Platform.isAndroid) {
       // Para Android 13+ pode ser necessário granular permissions
+      // Se tiver problemas em Android recentes, pode precisar de permissões mais específicas.
       permission = Permission.manageExternalStorage;
     } else {
       permission = Permission.storage;
@@ -36,9 +32,9 @@ class PdfService {
   }
   
   Future<Directory?> getDownloadsDirectory() async {
+    // Para Android, uma abordagem mais robusta pode ser necessária para versões futuras,
+    // mas '/storage/emulated/0/Download' funciona na maioria dos casos.
     if (Platform.isAndroid) {
-      // Este plugin foi descontinuado, mas ainda funciona para muitas versões.
-      // Para o futuro, pode ser necessário usar 'external_path'.
       return Directory('/storage/emulated/0/Download');
     }
     return await getApplicationDocumentsDirectory();
@@ -88,12 +84,11 @@ class PdfService {
 
   // --- FUNÇÕES PÚBLICAS DE GERAÇÃO DE PDF ---
 
-  // <<< MUDANÇA: Nova função principal para gerar o relatório de vigilância >>>
   Future<void> gerarRelatorioDeVistoriasPdf({
     required BuildContext context,
     required String tituloRelatorio, // Ex: "Relatório do Setor 01"
     required List<Vistoria> vistorias,
-    pw.ImageProvider? graficoImagem, // Opcional, para gráficos futuros
+    pw.ImageProvider? graficoImagem,
   }) async {
     if (vistorias.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -111,7 +106,6 @@ class PdfService {
     final dbHelper = DatabaseHelper.instance;
     final analysisService = AnalysisService();
     
-    // Busca todos os focos associados às vistorias
     final allFocos = <Foco>[];
     for(final vistoria in vistorias) {
       if(vistoria.dbId != null) {
@@ -119,9 +113,7 @@ class PdfService {
       }
     }
     
-    // Realiza a análise epidemiológica
     final analise = analysisService.getAnaliseEpidemiologica(vistorias, allFocos);
-
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -168,7 +160,6 @@ class PdfService {
     await _salvarEAbriPdf(context, pdf, nomeArquivo);
   }
 
-
   // --- WIDGETS AUXILIARES PARA CONSTRUÇÃO DE PDF ---
 
   pw.Widget _buildHeader(String titulo, String subtitulo) {
@@ -197,13 +188,12 @@ class PdfService {
   pw.Widget _buildFooter() {
     return pw.Center(
       child: pw.Text(
-        'Documento gerado pelo GeoVigilância', // <<< MUDANÇA
+        'Documento gerado pelo GeoVigilância',
         style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
       ),
     );
   }
   
-  // <<< MUDANÇA: Novo widget para a tabela de resumo epidemiológico >>>
   pw.Widget _buildTabelaResumoEpidemiologico(AnaliseEpidemiologicaResult analise) {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey, width: 0.5),
@@ -221,12 +211,13 @@ class PdfService {
     );
   }
 
-  // <<< MUDANÇA: Novo widget para a tabela de criadouros >>>
   pw.Widget _buildTabelaCriadouros(AnaliseEpidemiologicaResult analise) {
     final headers = ['Tipo de Criadouro', 'Quantidade', '% do Total'];
     
     final data = analise.distribuicaoCriadouros.entries.map((entry) {
-      final porcentagem = (entry.value / analise.totalFocosEncontrados) * 100;
+      final porcentagem = analise.totalFocosEncontrados > 0 
+          ? (entry.value / analise.totalFocosEncontrados) * 100 
+          : 0.0;
       return [
         entry.key,
         entry.value.toString(),
@@ -247,7 +238,6 @@ class PdfService {
     );
   }
 
-  // Helper para criar linhas da tabela de resumo
   pw.TableRow _buildTableRow(String metrica, String valor) {
     return pw.TableRow(
       children: [

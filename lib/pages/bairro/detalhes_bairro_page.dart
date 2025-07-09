@@ -125,7 +125,7 @@ class _DetalhesBairroPageState extends State<DetalhesBairroPage> {
         builder: (context) => FormSetorPage(
           bairroId: setor.bairroId,
           bairroAtividadeId: setor.bairroAtividadeId,
-          quarteiraoParaEditar: setor,
+          setorParaEditar: setor,
         ),
       ),
     );
@@ -214,7 +214,7 @@ class _DetalhesBairroPageState extends State<DetalhesBairroPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
             child: Text(
-              "Setores / Quarteirões",
+              "Setores ",
               style: Theme.of(context)
                   .textTheme
                   .titleLarge

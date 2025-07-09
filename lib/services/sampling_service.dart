@@ -1,8 +1,8 @@
-// lib/services/sampling_service.dart (CORRIGIDO COM O IMPORT FALTANTE)
+// lib/services/sampling_service.dart (VERSÃO FINAL CORRIGIDA)
 
 import 'dart:math';
-// <<< CORREÇÃO AQUI: Adicione este import >>>
 import 'package:latlong2/latlong.dart';
+import 'package:flutter_map/flutter_map.dart'; // <<< CORREÇÃO AQUI: IMPORT ADICIONADO
 import 'package:geovigilancia/models/imported_feature_model.dart';
 
 // Classe auxiliar para transportar o ponto gerado e as propriedades do polígono original.

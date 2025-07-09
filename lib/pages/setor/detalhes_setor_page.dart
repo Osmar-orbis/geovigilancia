@@ -55,7 +55,7 @@ class _DetalhesSetorPageState extends State<DetalhesSetorPage> {
     final bool? recarregar = await Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (context) => FormVistoriaPage(quarteirao: setorCompleto)),
+          builder: (context) => FormVistoriaPage(setor: setorCompleto)),
     );
 
     if (recarregar == true && mounted) {

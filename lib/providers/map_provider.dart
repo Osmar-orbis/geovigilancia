@@ -1,4 +1,4 @@
-// lib/providers/map_provider.dart (VERSÃO ADAPTADA PARA GEOVIGILÂNCIA)
+// lib/providers/map_provider.dart (VERSÃO CORRIGIDA E ADAPTADA PARA GEOVIGILÂNCIA)
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -11,7 +11,6 @@ import 'package:geovigilancia/models/setor_model.dart';
 import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/models/imported_feature_model.dart';
 import 'package:geovigilancia/models/sample_point.dart';
-import 'package:geovigilancia/services/export_service.dart';
 import 'package:geovigilancia/services/geojson_service.dart';
 import 'package:geovigilancia/services/sampling_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -23,7 +22,7 @@ class MapProvider with ChangeNotifier {
   final _geoJsonService = GeoJsonService();
   final _dbHelper = DatabaseHelper.instance;
   final _samplingService = SamplingService();
-  final _exportService = ExportService();
+  
   
   static final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -257,15 +256,16 @@ class MapProvider with ChangeNotifier {
     return "Plano importado: ${vistoriasParaSalvar.length} vistorias salvas. Novos Bairros: $novosBairros, Novos Setores: $novosSetores.";
   }
 
-  Future<String> gerarVistoriasParaAtividade({required double hectaresPerSample}) async {
+  // <<< MÉTODO CORRIGIDO >>>
+  Future<String> gerarVistoriasParaAtividade({required double imoveisPorHectare}) async {
     if (_importedPolygons.isEmpty) return "Nenhum polígono de setor carregado.";
     if (_currentAtividade == null) return "Erro: Atividade atual não definida.";
 
     _setLoading(true);
 
-    final pontosGerados = _samplingService.generateMultiTalhaoSamplePoints(
+    final pontosGerados = _samplingService.generateVistoriaPoints(
       importedFeatures: _importedPolygons,
-      hectaresPerSample: hectaresPerSample,
+      propertiesPerHectare: imoveisPorHectare, // Nome do parâmetro corrigido
     );
 
     if (pontosGerados.isEmpty) {
@@ -318,9 +318,7 @@ class MapProvider with ChangeNotifier {
       for (final setor in setores) {
         final vistorias = await _dbHelper.getVistoriasDoSetor(setor.id!);
         
-        final vistoriasComFoco = vistorias.where((v) => v.resultado == 'Com Foco').toList();
-
-        for (final v in vistoriasComFoco) {
+        for (final v in vistorias) {
            _samplePoints.add(SamplePoint(
               id: v.dbId ?? 0,
               position: LatLng(v.latitude ?? 0, v.longitude ?? 0),
@@ -379,7 +377,8 @@ class MapProvider with ChangeNotifier {
     }
   }
 
-  Future<void> exportarPlanoDeAmostragem(BuildContext context) async {
+  // <<< MÉTODO CORRIGIDO >>>
+  Future<void> exportarPlanoDeVistoria(BuildContext context) async {
     final List<int> vistoriaIds = samplePoints.map((p) => p.data['dbId'] as int).toList();
 
     if (vistoriaIds.isEmpty) {
@@ -390,11 +389,9 @@ class MapProvider with ChangeNotifier {
         return;
     }
     // A chamada ao ExportService precisará ser adaptada para lidar com 'vistoriaIds'
-    /*
-    await _exportService.exportarPlanoDeVistoria(
-      context: context,
-      vistoriaIds: vistoriaIds,
-    );
-    */
+    // Ex: await _exportService.exportarPlanoDeVistoria(context: context, vistoriaIds: vistoriaIds);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Função de exportação de plano em desenvolvimento.'),
+    ));
   }
 }

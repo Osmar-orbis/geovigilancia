@@ -7,7 +7,8 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("com.google.gms.google-services")
+    // <<< COMENTE ESTA LINHA >>>
+    // id("com.google.gms.google-services") 
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -42,8 +43,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.geoforestcoletor"
-        minSdk = 21
+        applicationId = "com.example.geovigilancia"
+        minSdk = 23
         targetSdk = 34
         versionCode = flutterVersionCode.toInt()
         versionName = flutterVersionName

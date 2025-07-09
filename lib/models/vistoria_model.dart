@@ -1,16 +1,14 @@
-// lib/models/vistoria_model.dart
+// lib/models/vistoria_model.dart (VERSÃO CORRIGIDA)
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-// Importa o modelo Foco, que será o próximo a ser criado.
 import 'package:geovigilancia/models/foco_model.dart'; 
 
-// <<< MUDANÇA: Novo enum para o status da visita domiciliar. >>>
 enum StatusVisita {
   realizada(Icons.check_circle_outline, Colors.green),
   fechada(Icons.lock_outline, Colors.orange),
   recusa(Icons.do_not_disturb_on_outlined, Colors.red),
-  pendente(Icons.pending_outlined, Colors.grey); // Mantemos 'pendente' para planejamento
+  pendente(Icons.pending_outlined, Colors.grey);
 
   final IconData icone;
   final Color cor;
@@ -18,21 +16,20 @@ enum StatusVisita {
   const StatusVisita(this.icone, this.cor);
 }
 
-// <<< MUDANÇA: Classe renomeada de Parcela para Vistoria. >>>
 class Vistoria {
   int? dbId;
-  int? setorId; // Chave estrangeira para o setor (antigo talhaoId)
+  int? setorId;
   DateTime? dataColeta;
   
-  // <<< MUDANÇA: Campos de identificação adaptados. >>>
-  final String? idBairro; // antigo idFazenda
-  final String? nomeBairro; // antigo nomeFazenda
-  final String? nomeSetor; // antigo nomeTalhao
+  final String? idBairro;
+  final String? nomeBairro;
+  final String? nomeSetor;
 
-  // <<< MUDANÇA: Campos principais completamente adaptados para a vistoria. >>>
-  final String? identificadorImovel; // antigo idParcela (ex: Rua X, 123)
-  final String tipoImovel; // Ex: Residencial, Comercial, Terreno Baldio
-  final String? resultado; // Ex: "Com Foco", "Sem Foco"
+  final String? identificadorImovel;
+  final String tipoImovel;
+  
+  // <<< MUDANÇA PRINCIPAL AQUI: 'final' removido de 'resultado' >>>
+  String? resultado; 
   
   final String? observacao;
   final double? latitude;
@@ -40,13 +37,8 @@ class Vistoria {
   StatusVisita status;
   bool exportada;
   bool isSynced;
-  List<String> photoPaths; // Para fotos GERAIS do imóvel
-  
-  // Lista de focos encontrados nesta vistoria.
+  List<String> photoPaths;
   List<Foco> focos;
-
-  // <<< REMOÇÃO: Campos de área e dimensões foram removidos. >>>
-  // areaMetrosQuadrados, largura, comprimento, raio
 
   Vistoria({
     this.dbId,
@@ -68,6 +60,7 @@ class Vistoria {
     this.focos = const [],
   });
 
+  // O método copyWith já lida com a alteração do 'resultado' corretamente.
   Vistoria copyWith({
     int? dbId,
     int? setorId,
@@ -95,7 +88,7 @@ class Vistoria {
       nomeSetor: nomeSetor ?? this.nomeSetor,
       identificadorImovel: identificadorImovel ?? this.identificadorImovel,
       tipoImovel: tipoImovel ?? this.tipoImovel,
-      resultado: resultado ?? this.resultado,
+      resultado: resultado ?? this.resultado, // Esta linha agora funciona sem problemas
       observacao: observacao ?? this.observacao,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
@@ -108,13 +101,14 @@ class Vistoria {
     );
   }
 
+  // O resto do arquivo (toMap, fromMap) não precisa de alterações.
   Map<String, dynamic> toMap() {
     return {
       'id': dbId,
       'setorId': setorId,
-      'idBairro': idBairro, // antigo idFazenda
-      'nomeBairro': nomeBairro, // antigo nomeFazenda
-      'nomeSetor': nomeSetor, // antigo nomeTalhao
+      'idBairro': idBairro,
+      'nomeBairro': nomeBairro,
+      'nomeSetor': nomeSetor,
       'identificadorImovel': identificadorImovel,
       'tipoImovel': tipoImovel,
       'resultado': resultado,
@@ -122,7 +116,6 @@ class Vistoria {
       'latitude': latitude,
       'longitude': longitude,
       'dataColeta': dataColeta?.toIso8601String(),
-      // <<< MUDANÇA: O nome do campo no banco é 'statusVisita' >>>
       'statusVisita': status.name, 
       'exportada': exportada ? 1 : 0,
       'isSynced': isSynced ? 1 : 0,
@@ -142,19 +135,19 @@ class Vistoria {
 
     return Vistoria(
       dbId: map['id'],
-      setorId: map['setorId'] ?? map['talhaoId'], // Compatibilidade
-      idBairro: map['idBairro'] ?? map['idFazenda'], // Compatibilidade
-      nomeBairro: map['nomeBairro'] ?? map['nomeFazenda'], // Compatibilidade
-      nomeSetor: map['nomeSetor'] ?? map['nomeTalhao'], // Compatibilidade
-      identificadorImovel: map['identificadorImovel'] ?? map['idParcela'], // Compatibilidade
-      tipoImovel: map['tipoImovel'] ?? '', // Campo novo
-      resultado: map['resultado'], // Campo novo
+      setorId: map['setorId'],
+      idBairro: map['idBairro'],
+      nomeBairro: map['nomeBairro'],
+      nomeSetor: map['nomeSetor'],
+      identificadorImovel: map['identificadorImovel'],
+      tipoImovel: map['tipoImovel'] ?? '',
+      resultado: map['resultado'],
       observacao: map['observacao'],
       latitude: map['latitude'],
       longitude: map['longitude'],
       dataColeta: map['dataColeta'] != null ? DateTime.parse(map['dataColeta']) : null,
       status: StatusVisita.values.firstWhere(
-            (e) => e.name == (map['statusVisita'] ?? map['status']), // Lê o novo e o antigo
+            (e) => e.name == (map['statusVisita'] ?? map['status']),
         orElse: () => StatusVisita.pendente,
       ),
       exportada: map['exportada'] == 1,

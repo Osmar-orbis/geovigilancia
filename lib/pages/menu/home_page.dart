@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart';
 import 'package:geovigilancia/pages/menu/configuracoes_page.dart';
 import 'package:geovigilancia/providers/license_provider.dart';
-import 'package:geovigilancia/services/export_service.dart';
 import 'package:geovigilancia/widgets/menu_card.dart';
 
 class HomePage extends StatefulWidget {

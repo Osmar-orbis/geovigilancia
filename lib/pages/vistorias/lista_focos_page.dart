@@ -164,7 +164,7 @@ class _ListaFocosPageState extends State<ListaFocosPage> {
             Text('Vistoria: ${_vistoriaAtual.identificadorImovel ?? "ID não informado"}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const Divider(height: 20),
             _buildStatRow('Bairro:', _vistoriaAtual.nomeBairro ?? 'N/A'),
-            _buildStatRow('Setor/Quarteirão:', _vistoriaAtual.nomeSetor ?? 'N/A'),
+            _buildStatRow('Setor/', _vistoriaAtual.nomeSetor ?? 'N/A'),
             _buildStatRow('Tipo de Imóvel:', _vistoriaAtual.tipoImovel),
             _buildStatRow('Total de Focos:', '${_focosColetados.length}'),
           ],

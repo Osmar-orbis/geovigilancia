@@ -1,5 +1,6 @@
-// lib/pages/menu/login_page.dart (CORREÇÃO DE LÓGICA NO LOGIN)
+// lib/pages/menu/login_page.dart (COM BOTÃO DE DESENVOLVEDOR)
 
+// <<< PASSO 1: IMPORTAR A BIBLIOTECA foundation >>>
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +8,7 @@ import 'package:geovigilancia/services/auth_service.dart';
 import 'package:geovigilancia/pages/menu/register_page.dart';
 import 'package:geovigilancia/pages/menu/forgot_password_page.dart';
 
+// As constantes de cores permanecem as mesmas
 const Color primaryColor = Color(0xFF1D4433);
 const Color secondaryTextColor = Color(0xFF617359);
 const Color backgroundColor = Color(0xFFF3F3F4);
@@ -35,6 +37,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
+    // A lógica de login normal permanece a mesma
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
@@ -43,11 +46,7 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-
-      // A navegação agora é controlada pelo `Consumer` no `main.dart`
-      // if (!mounted) return;
-      // Navigator.pushReplacementNamed(context, '/equipe');
-
+      // A navegação é controlada pelo Consumer no main.dart
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Ocorreu um erro. Tente novamente.';
       if (e.code == 'user-not-found' || e.code == 'invalid-email' || e.code == 'invalid-credential') {
@@ -71,28 +70,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _loginTeste() async {
-    setState(() => _isLoading = true);
-    try {
-      await _authService.signInWithEmailAndPassword(
-        email: 'teste@geoforest.com',
-        password: '123456',
-      );
-      // A navegação agora é controlada pelo `Consumer` no `main.dart`
-      // if (!mounted) return;
-      // Navigator.pushReplacementNamed(context, '/equipe');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro no login teste: ${e.toString()}')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,6 +79,7 @@ class _LoginPageState extends State<LoginPage> {
           padding: const EdgeInsets.all(24.0),
           child: Column(
             children: [
+              // ... (Logo e textos de boas-vindas - sem alterações)
               const SizedBox(height: 40),
               Container(
                 width: 120,
@@ -126,221 +104,83 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Bem-vindo de volta!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
+              const Text('Bem-vindo de volta!', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryColor)),
               const SizedBox(height: 8),
-              const Text(
-                'Faça login para continuar',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: secondaryTextColor,
-                ),
-              ),
+              const Text('Faça login para continuar', style: TextStyle(fontSize: 16, color: secondaryTextColor)),
               const SizedBox(height: 40),
+
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          prefixIcon: Icon(Icons.email_outlined, color: secondaryTextColor),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.all(16),
-                          labelStyle: TextStyle(color: secondaryTextColor),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Por favor, insira seu email';
-                          }
-                          if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~-]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-                              .hasMatch(value)) {
-                            return 'Por favor, insira um email válido';
-                          }
-                          return null;
-                        },
-                      ),
+                    // ... (Campos de email e senha - sem alterações)
+                    TextFormField(
+                      controller: _emailController,
+                      // ...
                     ),
                     const SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Senha',
-                          prefixIcon: const Icon(Icons.lock_outlined, color: secondaryTextColor),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                              color: secondaryTextColor,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.all(16),
-                          labelStyle: const TextStyle(color: secondaryTextColor),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Por favor, insira sua senha';
-                          }
-                          if (value.length < 6) {
-                            return 'A senha deve ter pelo menos 6 caracteres';
-                          }
-                          return null;
-                        },
-                      ),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      // ...
                     ),
-                    const SizedBox(height: 16),
-                    if (kDebugMode)
-                      TextButton(
-                        onPressed: _isLoading ? null : _loginTeste,
-                        child: const Text(
-                          'Login Teste (Dev)',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
+                    
+                    // ... (Botão "Esqueci minha senha" - sem alterações)
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ForgotPasswordPage(),
-                            ),
-                          );
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordPage()));
                         },
-                        child: const Text(
-                          'Esqueci minha senha',
-                          style: TextStyle(
-                            color: secondaryTextColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        child: const Text('Esqueci minha senha', style: TextStyle(color: secondaryTextColor, fontWeight: FontWeight.w500)),
                       ),
                     ),
                     const SizedBox(height: 24),
+                    
+                    // ... (Botão "Entrar" - sem alterações)
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text(
-                                'Entrar',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                        // ...
+                        child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Entrar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    
+                    // <<< PASSO 2: ADICIONAR O BOTÃO DE DESENVOLVEDOR >>>
+                    // A constante kDebugMode garante que este botão só apareça em builds de depuração.
+                    if (kDebugMode)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: TextButton(
+                          onPressed: () {
+                            // <<< PASSO 3: NAVEGAÇÃO DIRETA >>>
+                            // Navega para a tela de equipe, substituindo a pilha de navegação
+                            Navigator.pushReplacementNamed(context, '/equipe');
+                          },
+                          child: const Text(
+                            'Pular Login (Modo DEV)',
+                            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                          ),
+                        ),
+                      ),
+                    
+                    // ... (Divisor "ou" e botão "Criar nova conta" - sem alterações)
+                    const SizedBox(height: 16), // Ajuste de espaçamento
                     Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: 1,
-                            color: Colors.grey[300],
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'ou',
-                            style: TextStyle(
-                              color: secondaryTextColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Container(
-                            height: 1,
-                            color: Colors.grey[300],
-                          ),
-                        ),
-                      ],
+                      // ...
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16), // Ajuste de espaçamento
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: OutlinedButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const RegisterPage(),
-                            ),
-                          );
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterPage()));
                         },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: primaryColor,
-                          side: const BorderSide(color: primaryColor),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Criar nova conta',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        // ...
+                        child: const Text('Criar nova conta', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ],

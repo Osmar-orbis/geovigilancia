@@ -155,9 +155,7 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
     }
   }
 
-  Future<void> _reabrirParaEdicao() async {
-    // Implementar lógica se necessário, mas geralmente não se reabre vistorias de recusa/fechada.
-  }
+  
   
   // <<< MUDANÇA: Salva os dados da vistoria e decide o próximo passo >>>
   Future<void> _salvarEVaiParaFocos() async {

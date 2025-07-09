@@ -1,4 +1,4 @@
-// lib/pages/vistorias/form_vistoria_page.dart (ADAPTADO PARA GEOVIGILÂNCIA)
+// lib/pages/vistorias/form_vistoria_page.dart (VERSÃO CORRIGIDA E LIMPA)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -11,10 +11,10 @@ import 'package:image_picker/image_picker.dart';
 
 class FormVistoriaPage extends StatefulWidget {
   final Vistoria? vistoriaParaEditar;
-  final Setor? quarteirao; // Usamos Setor para manter consistência com o DB
+  final Setor? setor;
 
-  const FormVistoriaPage({super.key, this.vistoriaParaEditar, this.quarteirao})
-      : assert(vistoriaParaEditar != null || quarteirao != null, 'É necessário fornecer uma vistoria para editar ou um setor para criar uma nova vistoria.');
+  const FormVistoriaPage({super.key, this.vistoriaParaEditar, this.setor})
+      : assert(vistoriaParaEditar != null || setor != null, 'É necessário fornecer uma vistoria para editar ou um setor para criar uma nova vistoria.');
 
   @override
   State<FormVistoriaPage> createState() => _FormVistoriaPageState();
@@ -41,7 +41,8 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
   bool _salvando = false;
   
   bool _isModoEdicao = false;
-  bool _isVinculadoAQuarteirao = false;
+  // <<< CORREÇÃO 1: REMOVIDA A VARIÁVEL NÃO UTILIZADA >>>
+  // bool _isVinculadoASetor = false; 
 
   final ImagePicker _picker = ImagePicker();
   
@@ -67,21 +68,23 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
         _vistoriaAtual = widget.vistoriaParaEditar!;
       }
       
-      _isVinculadoAQuarteirao = _vistoriaAtual.setorId != null;
+      // <<< CORREÇÃO 2: REMOVIDA A ATRIBUIÇÃO DA VARIÁVEL >>>
+      // _isVinculadoASetor = _vistoriaAtual.setorId != null; 
+
       if (_vistoriaAtual.status != StatusVisita.pendente && _vistoriaAtual.status != StatusVisita.realizada) {
         _isReadOnly = true;
       }
     } else {
       _isModoEdicao = false;
       _isReadOnly = false;
-      _isVinculadoAQuarteirao = true;
+      // _isVinculadoASetor = true; // Esta linha também pode ser removida se existir.
       _vistoriaAtual = Vistoria(
-        setorId: widget.quarteirao!.id,
+        setorId: widget.setor!.id,
         tipoImovel: '', 
         dataColeta: DateTime.now(),
-        nomeBairro: widget.quarteirao!.bairroNome,
-        nomeSetor: widget.quarteirao!.nome,
-        idBairro: widget.quarteirao!.bairroId,
+        nomeBairro: widget.setor!.bairroNome,
+        nomeSetor: widget.setor!.nome,
+        idBairro: widget.setor!.bairroId,
       );
     }
     _preencherControllersComDadosAtuais();

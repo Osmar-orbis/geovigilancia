@@ -1,6 +1,6 @@
 // lib/services/analysis_service.dart (ADAPTADO PARA GEOVIGILÂNCIA)
 
-import 'package:flutter/foundation.dart';
+
 // <<< MUDANÇA: Imports adaptados para os novos modelos >>>
 import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/models/foco_model.dart';

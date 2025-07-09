@@ -1,477 +1,65 @@
-// lib/pages/vistorias/form_vistoria_page.dart (CORRIGIDO)
+// test/widget_test.dart
 
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geovigilancia/models/vistoria_model.dart';
-import 'package:geovigilancia/models/setor_model.dart'; // Importa o modelo Setor
-import 'package:geovigilancia/pages/vistorias/lista_focos_page.dart';
-import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
-class FormVistoriaPage extends StatefulWidget {
-  final Vistoria? vistoriaParaEditar;
-  // <<< CORREÇÃO APLICADA AQUI >>>
-  final Setor? quarteirao;
+// Imports dos seus providers e controllers
+import 'package:geovigilancia/controller/login_controller.dart';
+import 'package:geovigilancia/providers/map_provider.dart';
+import 'package:geovigilancia/providers/team_provider.dart';
+import 'package:geovigilancia/providers/license_provider.dart';
 
-  const FormVistoriaPage({super.key, this.vistoriaParaEditar, this.quarteirao})
-      // <<< CORREÇÃO APLICADA AQUI >>>
-      : assert(vistoriaParaEditar != null || quarteirao != null, 'É necessário fornecer uma vistoria para editar ou um setor para criar uma nova vistoria.');
+// Import da página que você quer testar
+import 'package:geovigilancia/pages/menu/login_page.dart';
+
+// Um Mock do LoginController para evitar dependências de Firebase nos testes de widget.
+class MockLoginController extends LoginController {
+  bool _isLoggedIn = false;
+  bool _isInitialized = true;
 
   @override
-  State<FormVistoriaPage> createState() => _FormVistoriaPageState();
+  bool get isLoggedIn => _isLoggedIn;
+
+  @override
+  bool get isInitialized => _isInitialized;
+  
+  void setLoginStatus(bool loggedIn) {
+    _isLoggedIn = loggedIn;
+    notifyListeners();
+  }
 }
 
-class _FormVistoriaPageState extends State<FormVistoriaPage> {
-  final _formKey = GlobalKey<FormState>();
-  final dbHelper = DatabaseHelper.instance;
-  late Vistoria _vistoriaAtual;
-
-  final _bairroController = TextEditingController();
-  final _setorController = TextEditingController();
-  final _identificadorImovelController = TextEditingController();
-  final _observacaoController = TextEditingController();
-  
-  StatusVisita? _statusVisitaSelecionado;
-  String? _tipoImovelSelecionado;
-  
-  final List<String> _opcoesTipoImovel = ['Residencial', 'Comercial', 'Terreno Baldio', 'Ponto Estratégico', 'Outro'];
-
-  Position? _posicaoAtualExibicao;
-  bool _buscandoLocalizacao = false;
-  String? _erroLocalizacao;
-  bool _salvando = false;
-  
-  bool _isModoEdicao = false;
-  bool _isVinculadoAQuarteirao = false;
-
-  final ImagePicker _picker = ImagePicker();
-  
-  bool _isReadOnly = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _setupInitialData();
-  }
-
-  Future<void> _setupInitialData() async {
-    setState(() { _salvando = true; });
-
-    if (widget.vistoriaParaEditar != null) {
-      _isModoEdicao = true;
-      final vistoriaDoBanco = await dbHelper.getVistoriaById(widget.vistoriaParaEditar!.dbId!);
-      
-      if (vistoriaDoBanco != null) {
-        _vistoriaAtual = vistoriaDoBanco;
-        _vistoriaAtual.focos = await dbHelper.getFocosDaVistoria(_vistoriaAtual.dbId!);
-      } else {
-        _vistoriaAtual = widget.vistoriaParaEditar!;
-      }
-      
-      _isVinculadoAQuarteirao = _vistoriaAtual.setorId != null;
-      if (_vistoriaAtual.status != StatusVisita.pendente && _vistoriaAtual.status != StatusVisita.realizada) {
-        _isReadOnly = true;
-      }
-    } else {
-      _isModoEdicao = false;
-      _isReadOnly = false;
-      _isVinculadoAQuarteirao = true;
-      _vistoriaAtual = Vistoria(
-        setorId: widget.quarteirao!.id,
-        tipoImovel: '', 
-        dataColeta: DateTime.now(),
-        nomeBairro: widget.quarteirao!.bairroNome,
-        nomeSetor: widget.quarteirao!.nome,
-        idBairro: widget.quarteirao!.bairroId,
-      );
-    }
-    _preencherControllersComDadosAtuais();
-    setState(() { _salvando = false; });
-  }
-
-  void _preencherControllersComDadosAtuais() {
-    final v = _vistoriaAtual;
-    _bairroController.text = v.nomeBairro ?? '';
-    _setorController.text = v.nomeSetor ?? '';
-    _identificadorImovelController.text = v.identificadorImovel ?? '';
-    _observacaoController.text = v.observacao ?? '';
-    
-    _statusVisitaSelecionado = v.status;
-    if (_opcoesTipoImovel.contains(v.tipoImovel)) {
-      _tipoImovelSelecionado = v.tipoImovel;
-    }
-    
-    if (v.latitude != null && v.longitude != null) {
-      _posicaoAtualExibicao = Position(latitude: v.latitude!, longitude: v.longitude!, timestamp: DateTime.now(), accuracy: 0.0, altitude: 0.0, altitudeAccuracy: 0.0, heading: 0.0, headingAccuracy: 0.0, speed: 0.0, speedAccuracy: 0.0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _bairroController.dispose();
-    _setorController.dispose();
-    _identificadorImovelController.dispose();
-    _observacaoController.dispose();
-    super.dispose();
-  }
-  
-  Vistoria _construirObjetoVistoriaParaSalvar() {
-    return _vistoriaAtual.copyWith(
-      identificadorImovel: _identificadorImovelController.text.trim(),
-      nomeBairro: _bairroController.text.trim(),
-      nomeSetor: _setorController.text.trim(),
-      observacao: _observacaoController.text.trim(),
-      tipoImovel: _tipoImovelSelecionado ?? '',
-      status: _statusVisitaSelecionado,
-    );
-  }
-  
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final XFile? pickedFile = await _picker.pickImage(source: source, imageQuality: 80, maxWidth: 1024);
-      if (pickedFile != null) {
-        setState(() => _vistoriaAtual.photoPaths.add(pickedFile.path));
-      }
-    } catch (e) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao selecionar imagem: $e'), backgroundColor: Colors.red));
-    }
-  }
-
-  Future<void> _salvarEVaiParaFocos() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_tipoImovelSelecionado == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione o tipo de imóvel.'), backgroundColor: Colors.orange));
-      return;
-    }
-    
-    setState(() => _salvando = true);
-
-    try {
-      final vistoriaParaSalvar = _construirObjetoVistoriaParaSalvar();
-      final vistoriaAtualizada = vistoriaParaSalvar.copyWith(status: StatusVisita.realizada);
-
-      final vistoriaSalva = await dbHelper.saveFullVistoria(vistoriaAtualizada, _vistoriaAtual.focos);
-
-      if (mounted) {
-        await Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ListaFocosPage(vistoria: vistoriaSalva)));
-        Navigator.pop(context, true); 
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _salvando = false);
-    }
-  }
-
-  Future<void> _finalizarVisitaSemAcesso() async {
-    if (_statusVisitaSelecionado == null || _statusVisitaSelecionado == StatusVisita.realizada || _statusVisitaSelecionado == StatusVisita.pendente) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione o status "Fechada" ou "Recusa" para usar esta opção.'), backgroundColor: Colors.orange));
-      return;
-    }
-    
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _salvando = true);
-    try {
-      final vistoriaFinalizada = _construirObjetoVistoriaParaSalvar().copyWith(
-        status: _statusVisitaSelecionado,
-        resultado: 'Não Vistoriado',
-      );
-      await dbHelper.saveFullVistoria(vistoriaFinalizada, []);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vistoria (sem acesso) salva com sucesso!'), backgroundColor: Colors.green));
-        Navigator.of(context).pop(true);
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao finalizar: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _salvando = false);
-    }
-  }
-  
-  Future<void> _salvarAlteracoes() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _salvando = true);
-    try {
-      final vistoriaEditada = _construirObjetoVistoriaParaSalvar();
-      final vistoriaSalva = await dbHelper.saveFullVistoria(vistoriaEditada, _vistoriaAtual.focos);
-      
-      if (mounted) {
-        setState(() { _vistoriaAtual = vistoriaSalva; });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alterações salvas!'), backgroundColor: Colors.green));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _salvando = false);
-    }
-  }
-
-  Future<void> _navegarParaListaFocos() async {
-    if (_salvando) return;
-    
-    final foiAtualizado = await Navigator.push(context, MaterialPageRoute(builder: (context) => ListaFocosPage(vistoria: _vistoriaAtual)));
-    
-    if (foiAtualizado == true && mounted) {
-      _recarregarTela();
-    }
-  }
-  
-  Future<void> _recarregarTela() async {
-    if (_vistoriaAtual.dbId == null) return;
-    final vistoriaRecarregada = await dbHelper.getVistoriaById(_vistoriaAtual.dbId!);
-    if(vistoriaRecarregada != null && mounted) {
-      final focosRecarregados = await dbHelper.getFocosDaVistoria(vistoriaRecarregada.dbId!);
-      vistoriaRecarregada.focos = focosRecarregados;
-      setState(() {
-        _vistoriaAtual = vistoriaRecarregada;
-        if (_vistoriaAtual.status != StatusVisita.pendente && _vistoriaAtual.status != StatusVisita.realizada) {
-          _isReadOnly = true;
-        }
-        _preencherControllersComDadosAtuais();
-      });
-    }
-  }
-
-  Future<void> _obterLocalizacaoAtual() async {
-    if (_isReadOnly) return;
-    setState(() { _buscandoLocalizacao = true; _erroLocalizacao = null; });
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) throw 'Serviço de GPS desabilitado.';
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) throw 'Permissão negada.';
-      }
-      if (permission == LocationPermission.deniedForever) throw 'Permissão negada permanentemente.';
-      
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 20));
-      
-      setState(() {
-        _posicaoAtualExibicao = position;
-        _vistoriaAtual = _vistoriaAtual.copyWith(
-          latitude: position.latitude,
-          longitude: position.longitude,
-        );
-      });
-
-    } catch (e) {
-      setState(() => _erroLocalizacao = e.toString());
-    } finally {
-      if (mounted) setState(() => _buscandoLocalizacao = false);
-    }
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isModoEdicao ? 'Dados da Vistoria' : 'Nova Vistoria'),
-        backgroundColor: const Color(0xFF617359),
-        foregroundColor: Colors.white,
+void main() {
+  // Teste de widget para a tela de Login
+  testWidgets('LoginPage renders correctly', (WidgetTester tester) async {
+    // Envolve o LoginPage com os providers necessários para o teste.
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          // Use o MockController para testes
+          ChangeNotifierProvider<LoginController>(create: (_) => MockLoginController()),
+          ChangeNotifierProvider(create: (_) => MapProvider()),
+          ChangeNotifierProvider(create: (_) => TeamProvider()),
+          ChangeNotifierProvider(create: (_) => LicenseProvider()),
+        ],
+        child: const MaterialApp(
+          home: LoginPage(),
+        ),
       ),
-      body: _salvando && !_buscandoLocalizacao
-        ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_isReadOnly)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(color: _vistoriaAtual.status.cor.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                      child: Row(
-                        children: [
-                          Icon(_vistoriaAtual.status.icone, size: 18, color: _vistoriaAtual.status.cor),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text("Visita finalizada como '${_vistoriaAtual.status.name}'.", style: TextStyle(color: _vistoriaAtual.status.cor))),
-                        ],
-                      ),
-                    ),
-                  _buildCamposHierarquia(),
-                  const SizedBox(height: 16),
-                  TextFormField(controller: _identificadorImovelController, enabled: !_isReadOnly, decoration: const InputDecoration(labelText: 'Identificação do Imóvel (Rua, Nº)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.home_work_outlined)), validator: (v) => v == null || v.trim().isEmpty ? 'Campo obrigatório' : null),
-                  const SizedBox(height: 16),
-                  _buildCamposDeVistoria(),
-                  const SizedBox(height: 16),
-                  _buildColetorCoordenadas(),
-                  const SizedBox(height: 24),
-                  _buildPhotoSection(),
-                  const SizedBox(height: 16),
-                  TextFormField(controller: _observacaoController, enabled: !_isReadOnly, decoration: const InputDecoration(labelText: 'Observações da Vistoria', border: OutlineInputBorder(), prefixIcon: Icon(Icons.comment), helperText: 'Opcional'), maxLines: 3),
-                  const SizedBox(height: 24),
-                  _buildActionButtons(),
-                ],
-              ),
-            ),
-          ),
     );
-  }
 
-  Widget _buildCamposHierarquia() {
-    return Column(
-      children: [
-        TextFormField(controller: _bairroController, enabled: false, decoration: const InputDecoration(labelText: 'Nome do Bairro', border: OutlineInputBorder(), prefixIcon: Icon(Icons.location_city))),
-        const SizedBox(height: 16),
-        TextFormField(controller: _setorController, enabled: false, decoration: const InputDecoration(labelText: 'Setor / Quarteirão', border: OutlineInputBorder(), prefixIcon: Icon(Icons.grid_on))),
-      ],
-    );
-  }
+    // Verifica se os campos de texto para email e senha estão presentes.
+    expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Senha'), findsOneWidget);
 
-  Widget _buildCamposDeVistoria() {
-    return Column(
-      children: [
-        DropdownButtonFormField<String>(
-          value: _tipoImovelSelecionado,
-          items: _opcoesTipoImovel.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-          onChanged: _isReadOnly ? null : (value) => setState(() => _tipoImovelSelecionado = value),
-          decoration: const InputDecoration(labelText: 'Tipo do Imóvel', border: OutlineInputBorder(), prefixIcon: Icon(Icons.category_outlined)),
-          validator: (v) => v == null ? 'Selecione um tipo' : null,
-        ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<StatusVisita>(
-          value: _statusVisitaSelecionado,
-          items: StatusVisita.values.map((e) => DropdownMenuItem(value: e, child: Text(e.name))).toList(),
-          onChanged: _isReadOnly ? null : (value) => setState(() => _statusVisitaSelecionado = value),
-          decoration: const InputDecoration(labelText: 'Status da Visita', border: OutlineInputBorder(), prefixIcon: Icon(Icons.rule_outlined)),
-        ),
-      ],
-    );
-  }
+    // Verifica se o botão "Entrar" está presente.
+    expect(find.widgetWithText(ElevatedButton, 'Entrar'), findsOneWidget);
 
-  Widget _buildActionButtons() {
-    if (_isReadOnly) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(height: 50, child: OutlinedButton.icon(onPressed: _navegarParaListaFocos, icon: const Icon(Icons.bug_report_outlined), label: const Text('Ver Focos Registrados', style: TextStyle(fontSize: 18)))),
-        ],
-      );
-    }
+    // Verifica se o botão "Criar nova conta" está presente.
+    expect(find.widgetWithText(OutlinedButton, 'Criar nova conta'), findsOneWidget);
     
-    if (_isModoEdicao) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(height: 50, child: ElevatedButton.icon(onPressed: _salvando ? null : _salvarAlteracoes, icon: _salvando ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.save_outlined), label: const Text('Salvar Dados da Vistoria', style: TextStyle(fontSize: 18)), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, foregroundColor: Colors.white))),
-          const SizedBox(height: 12),
-          SizedBox(height: 50, child: ElevatedButton.icon(onPressed: _salvando ? null : _navegarParaListaFocos, icon: const Icon(Icons.bug_report_outlined), label: const Text('Ver/Editar Focos', style: TextStyle(fontSize: 18)), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1D4433), foregroundColor: Colors.white))),
-        ],
-      );
-    } else { 
-      final bool podeSalvarSemAcesso = _statusVisitaSelecionado == StatusVisita.fechada || _statusVisitaSelecionado == StatusVisita.recusa;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(height: 50, child: OutlinedButton.icon(
-            onPressed: _salvando || !podeSalvarSemAcesso ? null : _finalizarVisitaSemAcesso, 
-            style: OutlinedButton.styleFrom(side: BorderSide(color: podeSalvarSemAcesso ? const Color(0xFF1D4433) : Colors.grey), foregroundColor: podeSalvarSemAcesso ? const Color(0xFF1D4433) : Colors.grey),
-            icon: const Icon(Icons.block_outlined),
-            label: const Text('Salvar (Sem Acesso)', style: TextStyle(fontSize: 16))
-          )),
-          const SizedBox(height: 12),
-          SizedBox(height: 50, child: ElevatedButton.icon(
-            onPressed: _salvando ? null : _salvarEVaiParaFocos, 
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1D4433), foregroundColor: Colors.white), 
-            icon: _salvando ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.arrow_forward_ios),
-            label: const Text('Salvar e Adicionar Focos', style: TextStyle(fontSize: 16)))
-          ),
-        ],
-      );
-    }
-  }
-
-  Widget _buildColetorCoordenadas() {
-    final latExibicao = _posicaoAtualExibicao?.latitude ?? _vistoriaAtual.latitude;
-    final lonExibicao = _posicaoAtualExibicao?.longitude ?? _vistoriaAtual.longitude;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Coordenadas do Imóvel', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(4)),
-          child: Row(children: [
-            Expanded(
-              child: _buscandoLocalizacao
-                ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(width: 16), Text('Buscando...')])
-                : _erroLocalizacao != null
-                  ? Text('Erro: $_erroLocalizacao', style: const TextStyle(color: Colors.red))
-                  : (latExibicao == null)
-                    ? const Text('Nenhuma localização obtida.')
-                    : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Lat: ${latExibicao.toStringAsFixed(6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text('Lon: ${lonExibicao!.toStringAsFixed(6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        if (_posicaoAtualExibicao != null && _posicaoAtualExibicao!.accuracy > 0)
-                          Text('Precisão: ±${_posicaoAtualExibicao!.accuracy.toStringAsFixed(1)}m', style: TextStyle(color: Colors.grey[700])),
-                      ]),
-            ),
-            IconButton(icon: const Icon(Icons.my_location, color: Color(0xFF1D4433)), onPressed: _buscandoLocalizacao || _isReadOnly ? null : _obterLocalizacaoAtual, tooltip: 'Obter localização'),
-          ]),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildPhotoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Fotos Gerais do Imóvel', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(8)),
-          child: Column(
-            children: [
-              _vistoriaAtual.photoPaths.isEmpty
-                  ? const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 24.0), child: Text('Nenhuma foto adicionada.')))
-                  : GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8),
-                      itemCount: _vistoriaAtual.photoPaths.length,
-                      itemBuilder: (context, index) {
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(File(_vistoriaAtual.photoPaths[index]), fit: BoxFit.cover)),
-                            if (!_isReadOnly)
-                              Positioned(
-                                top: -8, right: -8,
-                                child: IconButton(
-                                  icon: const CircleAvatar(backgroundColor: Colors.white, radius: 12, child: Icon(Icons.close, color: Colors.red, size: 16)),
-                                  onPressed: () => setState(() => _vistoriaAtual.photoPaths.removeAt(index)),
-                                ),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
-              if (!_isReadOnly) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.camera), icon: const Icon(Icons.camera_alt_outlined), label: const Text('Câmera'))),
-                    const SizedBox(width: 8),
-                    Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined), label: const Text('Galeria'))),
-                  ],
-                ),
-              ]
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+    // Verifica se o texto de boas-vindas é exibido.
+    expect(find.text('Bem-vindo de volta!'), findsOneWidget);
+  });
 }

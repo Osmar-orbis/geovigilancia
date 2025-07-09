@@ -1,30 +1,30 @@
-// lib/pages/quarteiroes/form_setor_page.dart (ADAPTADO)
+// lib/pages/setor/form_setor_page.dart (ADAPTADO)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
 import 'package:geovigilancia/models/setor_model.dart'; // Importa o modelo Setor
 
-class FormQuarteiraoPage extends StatefulWidget {
+class FormSetorPage extends StatefulWidget {
   // Parâmetros adaptados para Bairro e Setor
   final String bairroId;
   final int bairroAtividadeId;
-  final Setor? quarteiraoParaEditar;
+  final Setor? setorParaEditar;
 
-  const FormQuarteiraoPage({
+  const FormSetorPage({
     super.key,
     required this.bairroId,
     required this.bairroAtividadeId,
-    this.quarteiraoParaEditar,
+    this.setorParaEditar,
   });
 
-  bool get isEditing => quarteiraoParaEditar != null;
+  bool get isEditing => setorParaEditar != null;
 
   @override
-  State<FormQuarteiraoPage> createState() => _FormQuarteiraoPageState();
+  State<FormSetorPage> createState() => _FormSetorPageState();
 }
 
-class _FormQuarteiraoPageState extends State<FormQuarteiraoPage> {
+class _FormSetorPageState extends State<FormSetorPage> {
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
   final _areaController = TextEditingController();
@@ -36,9 +36,9 @@ class _FormQuarteiraoPageState extends State<FormQuarteiraoPage> {
     super.initState();
     // Preenche o formulário se estiver editando um quarteirão existente
     if (widget.isEditing) {
-      final quarteirao = widget.quarteiraoParaEditar!;
-      _nomeController.text = quarteirao.nome;
-      _areaController.text = quarteirao.areaHa?.toString().replaceAll('.', ',') ?? '';
+      final setor = widget.setorParaEditar!;
+      _nomeController.text = setor.nome;
+      _areaController.text = setor.areaHa?.toString().replaceAll('.', ',') ?? '';
     }
   }
 
@@ -55,7 +55,7 @@ class _FormQuarteiraoPageState extends State<FormQuarteiraoPage> {
       setState(() => _isSaving = true);
 
       final setor = Setor(
-        id: widget.isEditing ? widget.quarteiraoParaEditar!.id : null,
+        id: widget.isEditing ? widget.setorParaEditar!.id : null,
         bairroId: widget.bairroId,
         bairroAtividadeId: widget.bairroAtividadeId,
         nome: _nomeController.text.trim(),
