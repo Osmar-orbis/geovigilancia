@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-import 'package:geovigilancia/models/analise_result_model.dart';
+import 'package:geovigilancia/models/analise_epidemiologica_result_model.dart';
 import 'package:geovigilancia/models/parcela_model.dart';
 import 'package:geovigilancia/models/talhao_model.dart';
 import 'package:geovigilancia/services/pdf_service.dart';

@@ -1,27 +1,26 @@
-// lib/pages/quarteiroes/detalhes_quarteirao_page.dart (CORRIGIDO)
+// lib/pages/setor/detalhes_setor_page.dart
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
 import 'package:geovigilancia/models/atividade_model.dart';
-import 'package:geovigilancia/models/setor_model.dart'; // Importa Setor
+import 'package:geovigilancia/models/setor_model.dart';
 import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/pages/menu/home_page.dart';
 import 'package:geovigilancia/pages/vistorias/form_vistoria_page.dart';
 
-class DetalhesQuarteiraoPage extends StatefulWidget {
-  // <<< CORREÇÃO: Usa a classe 'Setor' >>>
-  final Setor quarteirao;
+class DetalhesSetorPage extends StatefulWidget {
+  final Setor setor;
   final Atividade atividade;
 
-  const DetalhesQuarteiraoPage(
-      {super.key, required this.quarteirao, required this.atividade});
+  const DetalhesSetorPage(
+      {super.key, required this.setor, required this.atividade});
 
   @override
-  State<DetalhesQuarteiraoPage> createState() => _DetalhesQuarteiraoPageState();
+  State<DetalhesSetorPage> createState() => _DetalhesSetorPageState();
 }
 
-class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
+class _DetalhesSetorPageState extends State<DetalhesSetorPage> {
   late Future<List<Vistoria>> _vistoriasFuture;
   final dbHelper = DatabaseHelper.instance;
 
@@ -39,17 +38,18 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
       setState(() {
         _isSelectionMode = false;
         _selectedItens.clear();
-        _vistoriasFuture = dbHelper.getVistoriasDoSetor(widget.quarteirao.id!);
+        _vistoriasFuture = dbHelper.getVistoriasDoSetor(widget.setor.id!);
       });
     }
   }
 
   Future<void> _navegarParaNovaVistoria() async {
     // Busca o objeto completo para ter o nome do bairro
-    final setoresDoBairro = await dbHelper.getSetoresDoBairro(widget.quarteirao.bairroId, widget.quarteirao.bairroAtividadeId);
+    final setoresDoBairro = await dbHelper.getSetoresDoBairro(
+        widget.setor.bairroId, widget.setor.bairroAtividadeId);
     final setorCompleto = setoresDoBairro.firstWhere(
-      (q) => q.id == widget.quarteirao.id,
-      orElse: () => widget.quarteirao,
+      (q) => q.id == widget.setor.id,
+      orElse: () => widget.setor,
     );
 
     final bool? recarregar = await Navigator.push(
@@ -62,7 +62,7 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
       _carregarDados();
     }
   }
-  
+
   Future<void> _navegarParaDetalhesVistoria(Vistoria vistoria) async {
     final recarregar = await Navigator.push(
       context,
@@ -74,7 +74,7 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
       _carregarDados();
     }
   }
-  
+
   void _toggleSelectionMode(int? itemId) {
     setState(() {
       _isSelectionMode = !_isSelectionMode;
@@ -95,7 +95,7 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
       }
     });
   }
-  
+
   Future<void> _deleteSelectedItems() async {
     if (_selectedItens.isEmpty || !mounted) return;
 
@@ -103,10 +103,16 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar Exclusão'),
-        content: Text('Tem certeza que deseja apagar as ${_selectedItens.length} vistorias selecionadas?'),
+        content: Text(
+            'Tem certeza que deseja apagar as ${_selectedItens.length} vistorias selecionadas?'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), style: FilledButton.styleFrom(backgroundColor: Colors.red), child: const Text('Apagar')),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Apagar')),
         ],
       ),
     );
@@ -115,20 +121,33 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
       for (var id in _selectedItens) {
         await dbHelper.deleteVistoria(id);
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_selectedItens.length} vistorias apagadas.'), backgroundColor: Colors.green));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('${_selectedItens.length} vistorias apagadas.'),
+            backgroundColor: Colors.green));
+      }
       _carregarDados();
     }
   }
 
   AppBar _buildAppBar() {
     return AppBar(
-      title: Text('Setor: ${widget.quarteirao.nome}'),
+      title: Text('Setor: ${widget.setor.nome}'),
       actions: [
+        IconButton(
+          icon: const Icon(Icons.analytics_outlined),
+          tooltip: 'Ver Análise do Setor',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Página de análise em desenvolvimento.')));
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.home_outlined),
           tooltip: 'Voltar para o Início',
           onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomePage(title: 'GeoVigilância')),
+            MaterialPageRoute(
+                builder: (context) => const HomePage(title: 'GeoVigilância')),
             (Route<dynamic> route) => false,
           ),
         ),
@@ -141,9 +160,16 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
     return Scaffold(
       appBar: _isSelectionMode
           ? AppBar(
-              leading: IconButton(icon: const Icon(Icons.close), onPressed: () => _toggleSelectionMode(null)),
+              leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => _toggleSelectionMode(null)),
               title: Text('${_selectedItens.length} selecionados'),
-              actions: [IconButton(icon: const Icon(Icons.delete_outline), onPressed: _deleteSelectedItems, tooltip: 'Apagar Selecionados')],
+              actions: [
+                IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: _deleteSelectedItems,
+                    tooltip: 'Apagar Selecionados')
+              ],
             )
           : _buildAppBar(),
       body: Column(
@@ -157,29 +183,42 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Detalhes do Setor/Quarteirão', style: Theme.of(context).textTheme.titleLarge),
+                  Text('Detalhes do Setor/Quarteirão',
+                      style: Theme.of(context).textTheme.titleLarge),
                   const Divider(height: 20),
-                  Text("Atividade: ${widget.atividade.tipo}", style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(
+                      "Atividade: ${widget.atividade.tipo}",
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyLarge
+                          ?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text("Bairro: ${widget.quarteirao.bairroNome ?? 'Não informado'}", style: Theme.of(context).textTheme.bodyMedium),
+                  Text("Bairro: ${widget.setor.bairroNome ?? 'Não informado'}",
+                      style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
             ),
           ),
-          
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
             child: Text(
               "Vistorias do Setor",
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Theme.of(context).colorScheme.primary),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(color: Theme.of(context).colorScheme.primary),
             ),
           ),
           Expanded(
             child: FutureBuilder<List<Vistoria>>(
               future: _vistoriasFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                if (snapshot.hasError) return Center(child: Text('Erro: ${snapshot.error}'));
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Erro: ${snapshot.error}'));
+                }
 
                 final vistorias = snapshot.data ?? [];
                 if (vistorias.isEmpty) {
@@ -218,19 +257,30 @@ class _DetalhesQuarteiraoPageState extends State<DetalhesQuarteiraoPage> {
       itemBuilder: (context, index) {
         final vistoria = vistorias[index];
         final isSelected = _selectedItens.contains(vistoria.dbId!);
-        final dataFormatada = DateFormat('dd/MM/yyyy HH:mm').format(vistoria.dataColeta!);
+        final dataFormatada =
+            DateFormat('dd/MM/yyyy HH:mm').format(vistoria.dataColeta!);
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          color: isSelected ? Theme.of(context).colorScheme.primaryContainer.withAlpha(128) : null,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primaryContainer.withAlpha(128)
+              : null,
           child: ListTile(
-            onTap: () => _isSelectionMode ? _onItemSelected(vistoria.dbId!) : _navegarParaDetalhesVistoria(vistoria),
+            onTap: () => _isSelectionMode
+                ? _onItemSelected(vistoria.dbId!)
+                : _navegarParaDetalhesVistoria(vistoria),
             onLongPress: () => _toggleSelectionMode(vistoria.dbId!),
             leading: CircleAvatar(
-              backgroundColor: isSelected ? Theme.of(context).colorScheme.primary : vistoria.status.cor,
-              child: Icon(isSelected ? Icons.check : vistoria.status.icone, color: Colors.white),
+              backgroundColor: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : vistoria.status.cor,
+              child: Icon(
+                  isSelected ? Icons.check : vistoria.status.icone,
+                  color: Colors.white),
             ),
-            title: Text(vistoria.identificadorImovel ?? 'ID não informado', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Coletado em: $dataFormatada\nResultado: ${vistoria.resultado ?? vistoria.status.name}'),
+            title: Text(vistoria.identificadorImovel ?? 'ID não informado',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+                'Coletado em: $dataFormatada\nResultado: ${vistoria.resultado ?? vistoria.status.name}'),
             trailing: _isSelectionMode
                 ? null
                 : IconButton(

@@ -1,11 +1,12 @@
-// lib/services/pdf_service.dart (VERSÃO COMPLETA E CORRIGIDA)
+// lib/services/pdf_service.dart (ADAPTADO PARA GEOVIGILÂNCIA)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-import 'package:geovigilancia/models/arvore_model.dart';
-import 'package:geovigilancia/models/parcela_model.dart';
-import 'package:geovigilancia/models/talhao_model.dart';
+// <<< MUDANÇA: Imports adaptados para os novos modelos >>>
+import 'package:geovigilancia/models/bairro_model.dart';
+import 'package:geovigilancia/models/setor_model.dart';
+import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/services/analysis_service.dart';
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
@@ -15,14 +16,16 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:permission_handler/permission_handler.dart';
 
-import 'package:geovigilancia/models/analise_result_model.dart';
+import 'package:geovigilancia/models/analise_epidemiologica_result_model.dart';
 
 
 class PdfService {
 
+  // A lógica de permissão e salvamento permanece a mesma
   Future<bool> _requestPermission() async {
     Permission permission;
     if (Platform.isAndroid) {
+      // Para Android 13+ pode ser necessário granular permissions
       permission = Permission.manageExternalStorage;
     } else {
       permission = Permission.storage;
@@ -34,10 +37,9 @@ class PdfService {
   
   Future<Directory?> getDownloadsDirectory() async {
     if (Platform.isAndroid) {
-      final PathProviderAndroid provider = PathProviderAndroid();
-      final String? path = await provider.getDownloadsPath();
-      if (path != null) return Directory(path);
-      return null;
+      // Este plugin foi descontinuado, mas ainda funciona para muitas versões.
+      // Para o futuro, pode ser necessário usar 'external_path'.
+      return Directory('/storage/emulated/0/Download');
     }
     return await getApplicationDocumentsDirectory();
   }
@@ -54,7 +56,7 @@ class PdfService {
          return;
       }
       
-      final relatoriosDir = Directory('${downloadsDirectory.path}/GeoForest/Relatorios');
+      final relatoriosDir = Directory('${downloadsDirectory.path}/GeoVigilancia/Relatorios');
       if (!await relatoriosDir.exists()) await relatoriosDir.create(recursive: true);
       
       final path = '${relatoriosDir.path}/$nomeArquivo';
@@ -86,229 +88,86 @@ class PdfService {
 
   // --- FUNÇÕES PÚBLICAS DE GERAÇÃO DE PDF ---
 
-  Future<void> gerarRelatorioVolumetricoPdf({
+  // <<< MUDANÇA: Nova função principal para gerar o relatório de vigilância >>>
+  Future<void> gerarRelatorioDeVistoriasPdf({
     required BuildContext context,
-    required Map<String, dynamic> resultadoRegressao,
-    required Map<String, dynamic> producaoInventario,
-    required Map<String, dynamic> producaoSortimento,
+    required String tituloRelatorio, // Ex: "Relatório do Setor 01"
+    required List<Vistoria> vistorias,
+    pw.ImageProvider? graficoImagem, // Opcional, para gráficos futuros
   }) async {
-    final pdf = pw.Document();
-    final nomeTalhoes = producaoInventario['talhoes'] ?? 'Talhões Selecionados';
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        header: (pw.Context ctx) => _buildHeader('Relatório Volumétrico', nomeTalhoes),
-        footer: (pw.Context ctx) => _buildFooter(),
-        build: (pw.Context ctx) {
-          return [
-            pw.Text(
-              'Relatório de Análise Volumétrica Completa',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16),
-              textAlign: pw.TextAlign.center,
-            ),
-            pw.Divider(height: 20),
-            _buildTabelaEquacaoPdf(resultadoRegressao),
-            pw.SizedBox(height: 20),
-            _buildTabelaProducaoPdf(producaoInventario),
-            pw.SizedBox(height: 20),
-            _buildTabelaSortimentoPdf(producaoInventario, producaoSortimento),
-          ];
-        },
-      ),
-    );
-
-    final nomeArquivo = 'Analise_Volumetrica_${nomeTalhoes.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}.pdf';
-    await _salvarEAbriPdf(context, pdf, nomeArquivo);
-  }
-  
-  Future<void> gerarRelatorioUnificadoPdf({
-    required BuildContext context,
-    required List<Talhao> talhoes,
-  }) async {
-    if (talhoes.isEmpty) return;
-    
-    final analysisService = AnalysisService();
-    final dbHelper = DatabaseHelper.instance;
-    final pdf = pw.Document(); 
-    int talhoesProcessados = 0;
-
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Gerando relatório unificado...'),
-      duration: Duration(seconds: 15),
-    ));
-
-    for (final talhao in talhoes) {
-      final dadosAgregados = await dbHelper.getDadosAgregadosDoTalhao(talhao.id!);
-      final parcelas = dadosAgregados['parcelas'] as List<Parcela>;
-      final arvores = dadosAgregados['arvores'] as List<Arvore>;
-
-      if (parcelas.isEmpty || arvores.isEmpty) {
-        continue;
-      }
-      
-      final analiseGeral = analysisService.getTalhaoInsights(parcelas, arvores);
-      
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          header: (pw.Context ctx) => _buildHeader('Análise de Talhão', "${talhao.fazendaNome ?? 'N/A'} / ${talhao.nome}"),
-          footer: (pw.Context ctx) => _buildFooter(),
-          build: (pw.Context ctx) {
-            return [
-              _buildTabelaProducaoPdf({
-                  'talhoes': talhao.nome,
-                  'volume_ha': analiseGeral.volumePorHectare,
-                  'arvores_ha': analiseGeral.arvoresPorHectare,
-                  'area_basal_ha': analiseGeral.areaBasalPorHectare,
-                  'volume_total_lote': (talhao.areaHa != null && talhao.areaHa! > 0) ? analiseGeral.volumePorHectare * talhao.areaHa! : 0.0,
-                  'area_total_lote': talhao.areaHa ?? 0.0,
-              }),
-              pw.SizedBox(height: 20),
-              pw.Text('Distribuição Diamétrica (CAP)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-              pw.SizedBox(height: 10),
-              _buildTabelaDistribuicaoPdf(analiseGeral),
-            ];
-          },
-        ),
-      );
-      talhoesProcessados++;
-    }
-
-    if (talhoesProcessados == 0 && context.mounted) {
-      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    if (vistorias.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Nenhum talhão com dados para gerar relatório.'),
+        content: Text('Nenhuma vistoria para gerar relatório.'),
         backgroundColor: Colors.orange,
       ));
       return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Gerando relatório PDF...'),
+      duration: Duration(seconds: 10),
+    ));
+
+    final dbHelper = DatabaseHelper.instance;
+    final analysisService = AnalysisService();
     
-    final hoje = DateTime.now();
-    final nomeArquivo = 'Relatorio_Comparativo_GeoForest_${DateFormat('yyyy-MM-dd_HH-mm').format(hoje)}.pdf';
-    await _salvarEAbriPdf(context, pdf, nomeArquivo);
-  }
-
-  Future<void> gerarPdfUnificadoDePlanosDeCubagem({
-    required BuildContext context,
-    required Map<Talhao, Map<String, int>> planosPorTalhao,
-  }) async {
-    if (planosPorTalhao.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nenhum plano para gerar PDF.')));
-      return;
-    }
-
-    final pdf = pw.Document();
-
-    for (var entry in planosPorTalhao.entries) {
-      final talhao = entry.key;
-      final plano = entry.value;
-
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          header: (pw.Context ctx) => _buildHeader('Plano de Cubagem', "${talhao.fazendaNome ?? 'N/A'} / ${talhao.nome}"),
-          footer: (pw.Context ctx) => _buildFooter(),
-          build: (pw.Context ctx) {
-            return [
-              pw.SizedBox(height: 20),
-              pw.Text(
-                'Plano de Cubagem Estratificada por Classe Diamétrica',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16),
-                textAlign: pw.TextAlign.center,
-              ),
-              pw.Divider(height: 20),
-              _buildTabelaPlano(plano),
-            ];
-          },
-        ),
-      );
+    // Busca todos os focos associados às vistorias
+    final allFocos = <Foco>[];
+    for(final vistoria in vistorias) {
+      if(vistoria.dbId != null) {
+        allFocos.addAll(await dbHelper.getFocosDaVistoria(vistoria.dbId!));
+      }
     }
     
-    final hoje = DateTime.now();
-    final nomeArquivo = 'Planos_de_Cubagem_GeoForest_${DateFormat('yyyy-MM-dd_HH-mm').format(hoje)}.pdf';
-    await _salvarEAbriPdf(context, pdf, nomeArquivo);
-  }
-  
-  Future<void> gerarRelatorioRendimentoPdf({
-    required BuildContext context,
-    required String nomeFazenda,
-    required String nomeTalhao,
-    required List<RendimentoDAP> dadosRendimento,
-    required TalhaoAnalysisResult analiseGeral,
-    required pw.ImageProvider graficoImagem,
-  }) async {
-    final pdf = pw.Document();
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        header: (pw.Context context) => _buildHeader(nomeFazenda, nomeTalhao),
-        footer: (pw.Context context) => _buildFooter(),
-        build: (pw.Context context) {
-          return [
-            pw.Text(
-              'Relatório de Rendimento Comercial por Classe Diamétrica',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16),
-              textAlign: pw.TextAlign.center,
-            ),
-            pw.Divider(height: 20),
-            _buildResumoTalhaoPdf(analiseGeral),
-            pw.SizedBox(height: 20),
-            pw.Center(
-              child: pw.SizedBox(
-                width: 400,
-                child: pw.Image(graficoImagem),
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            _buildTabelaRendimentoPdf(dadosRendimento),
-          ];
-        },
-      ),
-    );
-    final nomeArquivo =
-        'relatorio_rendimento_${nomeTalhao.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}.pdf';
-    await _salvarEAbriPdf(context, pdf, nomeArquivo);
-  }
-  
-  Future<void> gerarRelatorioSimulacaoPdf({
-    required BuildContext context,
-    required String nomeFazenda,
-    required String nomeTalhao,
-    required double intensidade,
-    required TalhaoAnalysisResult analiseInicial,
-    required TalhaoAnalysisResult resultadoSimulacao,
-  }) async {
+    // Realiza a análise epidemiológica
+    final analise = analysisService.getAnaliseEpidemiologica(vistorias, allFocos);
+
     final pdf = pw.Document();
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        header: (pw.Context ctx) => _buildHeader(nomeFazenda, nomeTalhao),
+        header: (pw.Context ctx) => _buildHeader('Relatório de Campo', tituloRelatorio),
         footer: (pw.Context ctx) => _buildFooter(),
         build: (pw.Context ctx) {
           return [
             pw.Text(
-              'Relatório de Simulação de Desbaste',
+              'Resumo Epidemiológico',
               style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16),
               textAlign: pw.TextAlign.center,
             ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              'Intensidade Aplicada: ${intensidade.toStringAsFixed(0)}%',
-              style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700),
-              textAlign: pw.TextAlign.center,
-            ),
             pw.Divider(height: 20),
-            _buildTabelaSimulacaoPdf(analiseInicial, resultadoSimulacao),
+            _buildTabelaResumoEpidemiologico(analise),
+            
+            if (analise.distribuicaoCriadouros.isNotEmpty) ...[
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'Distribuição de Criadouros',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14),
+              ),
+              pw.SizedBox(height: 10),
+              _buildTabelaCriadouros(analise),
+            ],
+
+             if (analise.warnings.isNotEmpty) ...[
+              pw.SizedBox(height: 20),
+              pw.Text(
+                'Alertas Gerados',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14, color: PdfColors.red),
+              ),
+              pw.SizedBox(height: 5),
+              ...analise.warnings.map((w) => pw.Bullet(text: w)),
+            ]
           ];
         },
       ),
     );
-
-    final nomeArquivo = 'Simulacao_Desbaste_${nomeTalhao.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}.pdf';
+    
+    final nomeArquivoSanitizado = tituloRelatorio.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    final nomeArquivo = 'Relatorio_Vigilancia_$nomeArquivoSanitizado.pdf';
     await _salvarEAbriPdf(context, pdf, nomeArquivo);
   }
+
 
   // --- WIDGETS AUXILIARES PARA CONSTRUÇÃO DE PDF ---
 
@@ -338,128 +197,39 @@ class PdfService {
   pw.Widget _buildFooter() {
     return pw.Center(
       child: pw.Text(
-        'Documento gerado pelo Analista GeoForest',
+        'Documento gerado pelo GeoVigilância', // <<< MUDANÇA
         style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
       ),
     );
   }
   
-  // <<< FUNÇÃO RESTAURADA >>>
-  pw.Widget _buildResumoTalhaoPdf(TalhaoAnalysisResult result) {
-    return pw.Container(
-        padding: const pw.EdgeInsets.all(10),
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: PdfColors.grey),
-          borderRadius: pw.BorderRadius.circular(5),
-        ),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-          children: [
-            _buildPdfStat(
-                'Volume/ha', '${result.volumePorHectare.toStringAsFixed(1)} m³'),
-            _buildPdfStat('Árvores/ha', result.arvoresPorHectare.toString()),
-            _buildPdfStat(
-                'Área Basal', '${result.areaBasalPorHectare.toStringAsFixed(1)} m²'),
-          ],
-        ));
+  // <<< MUDANÇA: Novo widget para a tabela de resumo epidemiológico >>>
+  pw.Widget _buildTabelaResumoEpidemiologico(AnaliseEpidemiologicaResult analise) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey, width: 0.5),
+      children: [
+        _buildTableRow('Total de Imóveis', analise.totalImoveis.toString()),
+        _buildTableRow('Imóveis Trabalhados', analise.totalImoveisTrabalhados.toString()),
+        _buildTableRow('Imóveis com Foco', analise.totalImoveisComFoco.toString()),
+        _buildTableRow('Total de Focos Encontrados', analise.totalFocosEncontrados.toString()),
+        _buildTableRow('Total de Focos Positivos', analise.totalFocosPositivos.toString()),
+        _buildTableRow('Índice de Infestação Predial (IIP)', '${analise.indiceInfestacaoPredial.toStringAsFixed(2)}%'),
+        _buildTableRow('Índice de Breteau (IB)', analise.indiceBreteau.toStringAsFixed(2)),
+        _buildTableRow('Imóveis Fechados / Recusados', '${analise.totalFechados} / ${analise.totalRecusas}'),
+        _buildTableRow('Índice de Pendência', '${analise.indicePendencia.toStringAsFixed(2)}%'),
+      ]
+    );
   }
 
-  pw.Widget _buildPdfStat(String label, String value) {
-    return pw.Column(children: [
-      pw.Text(value,
-          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
-      pw.Text(label,
-          style: const pw.TextStyle(color: PdfColors.grey, fontSize: 10)),
-    ]);
-  }
-
-  pw.Widget _buildTabelaEquacaoPdf(Map<String, dynamic> resultadoRegressao) {
-    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      pw.Text('Equação de Volume Gerada', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-      pw.Divider(color: PdfColors.grey, height: 10),
-      pw.SizedBox(height: 5),
-      pw.RichText(
-        text: pw.TextSpan(children: [
-          const pw.TextSpan(text: 'Equação: ', style: pw.TextStyle(color: PdfColors.grey)),
-          pw.TextSpan(text: resultadoRegressao['equacao'], style: pw.TextStyle(font: pw.Font.courier())),
-        ]),
-      ),
-      pw.SizedBox(height: 5),
-      pw.Text('Coeficiente (R²): ${(resultadoRegressao['R2'] as double).toStringAsFixed(4)}'),
-      pw.Text('Nº de Amostras Usadas: ${resultadoRegressao['n_amostras']}'),
-    ]);
-  }
-
-  pw.Widget _buildTabelaProducaoPdf(Map<String, dynamic> producaoInventario) {
-    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      pw.Text('Totais do Inventário', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-      pw.Divider(color: PdfColors.grey, height: 10),
-      pw.SizedBox(height: 5),
-      pw.Text('Aplicado aos talhões: ${producaoInventario['talhoes']}'),
-      pw.SizedBox(height: 10),
-      pw.TableHelper.fromTextArray(
-        cellAlignment: pw.Alignment.centerLeft,
-        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-        data: <List<String>>[
-          ['Métrica', 'Valor'],
-          ['Volume por Hectare', '${(producaoInventario['volume_ha'] as double).toStringAsFixed(2)} m³/ha'],
-          ['Árvores por Hectare', '${producaoInventario['arvores_ha']} árv/ha'],
-          ['Área Basal por Hectare', '${(producaoInventario['area_basal_ha'] as double).toStringAsFixed(2)} m²/ha'],
-          if((producaoInventario['volume_total_lote'] as double) > 0)
-            ['Volume Total para ${(producaoInventario['area_total_lote'] as double).toStringAsFixed(2)} ha', '${(producaoInventario['volume_total_lote'] as double).toStringAsFixed(2)} m³'],
-        ],
-      ),
-    ]);
-  }
-
-  pw.Widget _buildTabelaSortimentoPdf(Map<String, dynamic> producaoInventario, Map<String, dynamic> producaoSortimento) {
-    final Map<String, double> porcentagens = producaoSortimento['porcentagens'] ?? {};
-    if (porcentagens.isEmpty) {
-      return pw.Text('Nenhuma produção por sortimento foi calculada.');
-    }
+  // <<< MUDANÇA: Novo widget para a tabela de criadouros >>>
+  pw.Widget _buildTabelaCriadouros(AnaliseEpidemiologicaResult analise) {
+    final headers = ['Tipo de Criadouro', 'Quantidade', '% do Total'];
     
-    final double volumeTotalHa = producaoInventario['volume_ha'] ?? 0.0;
-    
-    final sortedKeys = porcentagens.keys.toList()..sort((a,b) {
-      final numA = double.tryParse(a.split('-').first.replaceAll('>', '')) ?? 99;
-      final numB = double.tryParse(b.split('-').first.replaceAll('>', '')) ?? 99;
-      return numB.compareTo(numA); 
-    });
-
-    final List<List<String>> data = [];
-    for (var key in sortedKeys) {
-      final pct = porcentagens[key]!;
-      final volumeHaSortimento = volumeTotalHa * (pct / 100);
-      data.add([key, '${volumeHaSortimento.toStringAsFixed(2)} m³/ha', '${pct.toStringAsFixed(1)}%']);
-    }
-
-    return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      pw.Text('Produção por Sortimento', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-      pw.Divider(color: PdfColors.grey, height: 10),
-      pw.SizedBox(height: 5),
-      pw.TableHelper.fromTextArray(
-        headers: ['Classe', 'Volume por Hectare', '% do Total'],
-        headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-        data: data,
-        cellAlignment: pw.Alignment.centerLeft,
-        cellAlignments: {1: pw.Alignment.centerRight, 2: pw.Alignment.centerRight},
-      ),
-    ]);
-  }
-  
-  pw.Widget _buildTabelaDistribuicaoPdf(TalhaoAnalysisResult analise) {
-    final headers = ['Classe (CAP)', 'Nº de Árvores', '%'];
-    final totalArvoresVivas = analise.distribuicaoDiametrica.values.fold(0, (a, b) => a + b);
-    
-    final data = analise.distribuicaoDiametrica.entries.map((entry) {
-      final pontoMedio = entry.key;
-      final contagem = entry.value;
-      final inicioClasse = pontoMedio - 2.5;
-      final fimClasse = pontoMedio + 2.5 - 0.1;
-      final porcentagem = totalArvoresVivas > 0 ? (contagem / totalArvoresVivas) * 100 : 0;
+    final data = analise.distribuicaoCriadouros.entries.map((entry) {
+      final porcentagem = (entry.value / analise.totalFocosEncontrados) * 100;
       return [
-        '${inicioClasse.toStringAsFixed(1)} - ${fimClasse.toStringAsFixed(1)}',
-        contagem.toString(),
+        entry.key,
+        entry.value.toString(),
         '${porcentagem.toStringAsFixed(1)}%',
       ];
     }).toList();
@@ -469,116 +239,27 @@ class PdfService {
       data: data,
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
-      cellAlignment: pw.Alignment.center,
-      cellAlignments: {0: pw.Alignment.centerLeft},
-    );
-  }
-
-  pw.Widget _buildTabelaPlano(Map<String, int> plano) {
-    final headers = ['Classe Diamétrica (CAP)', 'Nº de Árvores para Cubar'];
-
-    if (plano.isEmpty) {
-      return pw.Center(child: pw.Text("Nenhum dado para gerar o plano."));
-    }
-
-    final data =
-        plano.entries.map((entry) => [entry.key, entry.value.toString()]).toList();
-    final total = plano.values.fold(0, (a, b) => a + b);
-    data.add(['Total', total.toString()]);
-
-    return pw.Table(
-      border: pw.TableBorder.all(),
-      columnWidths: {
-        0: const pw.FlexColumnWidth(2),
-        1: const pw.FlexColumnWidth(1),
-      },
-      children: [
-        pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
-          children: headers
-              .map((header) => pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(header,
-                        style: pw.TextStyle(
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.white),
-                        textAlign: pw.TextAlign.center),
-                  ))
-              .toList(),
-        ),
-        ...data.asMap().entries.map((entry) {
-          final index = entry.key;
-          final rowData = entry.value;
-          final bool isLastRow = index == data.length - 1;
-
-          return pw.TableRow(
-            children: rowData.asMap().entries.map((cellEntry) {
-              final colIndex = cellEntry.key;
-              final cellText = cellEntry.value;
-              return pw.Padding(
-                padding: const pw.EdgeInsets.all(8),
-                child: pw.Text(
-                  cellText,
-                  textAlign:
-                      colIndex == 1 ? pw.TextAlign.center : pw.TextAlign.left,
-                  style: isLastRow
-                      ? pw.TextStyle(fontWeight: pw.FontWeight.bold)
-                      : const pw.TextStyle(),
-                ),
-              );
-            }).toList(),
-          );
-        }),
-      ],
-    );
-  }
-  
-  // <<< FUNÇÃO RESTAURADA >>>
-  pw.Widget _buildTabelaRendimentoPdf(List<RendimentoDAP> dados) {
-    final headers = ['Classe DAP', 'Volume (m³/ha)', '% do Total', 'Árv./ha'];
-    
-    final data = dados
-        .map((item) => [
-              item.classe,
-              item.volumePorHectare.toStringAsFixed(1),
-              '${item.porcentagemDoTotal.toStringAsFixed(1)}%',
-              item.arvoresPorHectare.toString(),
-            ])
-        .toList();
-
-    return pw.TableHelper.fromTextArray(
-      headers: headers,
-      data: data,
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
-      cellAlignment: pw.Alignment.center,
+      cellAlignment: pw.Alignment.centerLeft,
       cellAlignments: {
-        0: pw.Alignment.centerLeft,
+        1: pw.Alignment.center,
+        2: pw.Alignment.centerRight,
       },
     );
   }
-  
-  // <<< FUNÇÃO RESTAURADA >>>
-  pw.Widget _buildTabelaSimulacaoPdf(TalhaoAnalysisResult antes, TalhaoAnalysisResult depois) {
-    final headers = ['Parâmetro', 'Antes', 'Após'];
-    
-    final data = [
-      ['Árvores/ha', antes.arvoresPorHectare.toString(), depois.arvoresPorHectare.toString()],
-      ['CAP Médio', '${antes.mediaCap.toStringAsFixed(1)} cm', '${depois.mediaCap.toStringAsFixed(1)} cm'],
-      ['Altura Média', '${antes.mediaAltura.toStringAsFixed(1)} m', '${depois.mediaAltura.toStringAsFixed(1)} m'],
-      ['Área Basal (G)', '${antes.areaBasalPorHectare.toStringAsFixed(2)} m²/ha', '${depois.areaBasalPorHectare.toStringAsFixed(2)} m²/ha'],
-      ['Volume', '${antes.volumePorHectare.toStringAsFixed(2)} m³/ha', '${depois.volumePorHectare.toStringAsFixed(2)} m³/ha'],
-    ];
 
-    return pw.TableHelper.fromTextArray(
-      headers: headers,
-      data: data,
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey700),
-      cellAlignment: pw.Alignment.center,
-      cellAlignments: {0: pw.Alignment.centerLeft},
-      cellStyle: const pw.TextStyle(fontSize: 11),
-      border: pw.TableBorder.all(color: PdfColors.grey),
+  // Helper para criar linhas da tabela de resumo
+  pw.TableRow _buildTableRow(String metrica, String valor) {
+    return pw.TableRow(
+      children: [
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(5),
+          child: pw.Text(metrica, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+        ),
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(5),
+          child: pw.Text(valor, textAlign: pw.TextAlign.right),
+        ),
+      ]
     );
   }
 }

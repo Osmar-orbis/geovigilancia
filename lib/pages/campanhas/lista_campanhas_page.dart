@@ -11,7 +11,6 @@ import 'package:geovigilancia/models/campanha_model.dart';
 import 'package:geovigilancia/pages/campanhas/detalhes_campanha_page.dart';
 import 'package:geovigilancia/pages/campanhas/form_campanha_page.dart';
 
-// <<< AQUI ESTÁ A DEFINIÇÃO DA CLASSE QUE ESTAVA FALTANDO >>>
 class ListaCampanhasPage extends StatefulWidget {
   final String title;
   final bool isImporting;

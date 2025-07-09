@@ -1,17 +1,13 @@
-// lib/pages/menu/home_page.dart
+// lib/pages/menu/home_page.dart (CORRIGIDO E ADAPTADO)
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-// <<< CORRIJA ESTA LINHA >>>
-import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart'; // Usando o plural "campanhas"
-
+import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart';
 import 'package:geovigilancia/pages/menu/configuracoes_page.dart';
 import 'package:geovigilancia/providers/license_provider.dart';
 import 'package:geovigilancia/services/export_service.dart';
 import 'package:geovigilancia/widgets/menu_card.dart';
 
-// <<< AQUI ESTÁ A CLASSE QUE O MAIN.DART PROCURA >>>
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
   final String title;
@@ -21,7 +17,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Lógica para mostrar diálogo de importação (adaptada)
+  
   void _mostrarDialogoImportacao(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -41,7 +37,7 @@ class _HomePageState extends State<HomePage> {
                 builder: (context) => const ListaCampanhasPage(
                   title: 'Importar Vistorias para...',
                   isImporting: true,
-                  importType: 'vistorias', // Tipo de importação adaptado
+                  importType: 'vistorias',
                 ),
               ));
             },
@@ -51,8 +47,6 @@ class _HomePageState extends State<HomePage> {
             title: const Text('Plano de Trabalho (GeoJSON)'),
             subtitle: const Text('Importa polígonos de setores ou pontos de imóveis.'),
             onTap: () {
-               // A lógica de importação do GeoJSON agora está na página do mapa.
-               // Esta opção pode ser removida ou levar para uma tela de seleção de atividade.
                Navigator.of(ctx).pop();
                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Função de planejamento em desenvolvimento.')));
             },
@@ -62,10 +56,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Lógica para mostrar diálogo de exportação (adaptada)
   void _mostrarDialogoExportacao(BuildContext context) {
-    final exportService = ExportService(); // Supondo que você adaptará este serviço
-
+    // final exportService = ExportService(); // Crie esta instância quando o serviço for implementado
     showModalBottomSheet(
       context: context,
       builder: (ctx) => Container(
@@ -85,8 +77,6 @@ class _HomePageState extends State<HomePage> {
               subtitle: const Text('Exporta os dados de vistorias e focos encontrados.'),
               onTap: () {
                 Navigator.of(ctx).pop(); 
-                // Você precisará criar a função `exportarVistorias` no seu `export_service`
-                // exportService.exportarVistorias(context); 
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Função de exportação em desenvolvimento.')));
               },
             ),
@@ -135,7 +125,6 @@ class _HomePageState extends State<HomePage> {
               label: 'Análise de Dados',
               onTap: () {
                 if (licenseProvider.licenseInfo?.canUseAnalysis ?? false) {
-                  // Navegar para a página de análise de dados de vigilância
                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Página de análise em desenvolvimento.')));
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(

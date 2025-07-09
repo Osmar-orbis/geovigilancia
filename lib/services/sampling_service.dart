@@ -1,13 +1,11 @@
-// lib/services/sampling_service.dart (VERSÃO CORRIGIDA)
+// lib/services/sampling_service.dart (CORRIGIDO COM O IMPORT FALTANTE)
 
 import 'dart:math';
-import 'package:flutter_map/flutter_map.dart';
+// <<< CORREÇÃO AQUI: Adicione este import >>>
 import 'package:latlong2/latlong.dart';
+import 'package:geovigilancia/models/imported_feature_model.dart';
 
-// <<< 1. IMPORTA O NOVO MODELO CENTRALIZADO EM VEZ DO 'geojson_service' >>>
-import 'package:geovigilancia]/models/imported_feature_model.dart';
-
-// Classe auxiliar para transportar o ponto gerado e as propriedades do talhão.
+// Classe auxiliar para transportar o ponto gerado e as propriedades do polígono original.
 class GeneratedPoint {
   final LatLng position;
   final Map<String, dynamic> properties;
@@ -17,16 +15,17 @@ class GeneratedPoint {
 
 class SamplingService {
   
-  // Método principal refatorado para o novo fluxo de múltiplos talhões.
-  List<GeneratedPoint> generateMultiTalhaoSamplePoints({
+  // Método adaptado para gerar pontos de vistoria com base em uma densidade de imóveis por hectare.
+  List<GeneratedPoint> generateVistoriaPoints({
     required List<ImportedPolygonFeature> importedFeatures,
-    required double hectaresPerSample,
+    required double propertiesPerHectare, // Ex: 10 imóveis por hectare
   }) {
-    if (hectaresPerSample <= 0 || importedFeatures.isEmpty) return [];
+    if (propertiesPerHectare <= 0 || importedFeatures.isEmpty) return [];
 
     final allPoints = importedFeatures.expand((f) => f.polygon.points).toList();
     if (allPoints.isEmpty) return [];
     
+    // Agora o compilador saberá o que é LatLngBounds
     final bounds = LatLngBounds.fromPoints(allPoints);
     final double minLat = bounds.south;
     final double maxLat = bounds.north;
@@ -35,9 +34,12 @@ class SamplingService {
 
     final double centerLatRad = ((minLat + maxLat) / 2) * (pi / 180.0);
     
-    final double spacingInMeters = sqrt(hectaresPerSample * 10000);
-    final double latStep = spacingInMeters / 111132.0;
-    final double lonStep = spacingInMeters / (111320.0 * cos(centerLatRad));
+    // A lógica do espaçamento foi invertida para usar imóveis/ha
+    final double areaPerProperty = 10000 / propertiesPerHectare;
+    final double spacingInMeters = sqrt(areaPerProperty);
+
+    final double latStep = spacingInMeters / 111132.0; // Conversão aproximada de metros para graus de latitude
+    final double lonStep = spacingInMeters / (111320.0 * cos(centerLatRad)); // Conversão para graus de longitude
 
     final List<GeneratedPoint> validSamplePoints = [];
 
@@ -60,6 +62,7 @@ class SamplingService {
     return validSamplePoints;
   }
 
+  // Este método é um algoritmo geométrico padrão (Ray Casting) e não precisa de nenhuma alteração.
   bool _isPointInPolygon(LatLng point, List<LatLng> polygonVertices) {
     if (polygonVertices.isEmpty) return false;
     

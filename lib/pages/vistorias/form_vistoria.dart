@@ -15,7 +15,7 @@ import 'package:image_picker/image_picker.dart';
 class FormVistoriaPage extends StatefulWidget {
   // <<< MUDANÇA: Tipos de parâmetros atualizados para Vistoria e Quarteirao >>>
   final Vistoria? vistoriaParaEditar;
-  final Quarteirao? quarteirao;
+  final Setor? quarteirao;
 
   const FormVistoriaPage({super.key, this.vistoriaParaEditar, this.quarteirao})
       : assert(vistoriaParaEditar != null || quarteirao != null, 'É necessário fornecer uma vistoria para editar ou um quarteirão para criar uma nova vistoria.');

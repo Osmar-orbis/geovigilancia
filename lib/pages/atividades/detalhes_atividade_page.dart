@@ -1,21 +1,14 @@
-// lib/pages/atividades/detalhes_atividade_page.dart (VERSÃO CORRIGIDA E ADAPTADA PARA GEOVIGILÂNCIA)
-
-// lib/pages/atividades/detalhes_atividade_page.dart
+// lib/pages/atividades/detalhes_atividade_page.dart (CORRIGIDO COM CHECAGEM DE 'mounted')
 
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
-
-// Importações de modelos e páginas
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
 import 'package:geovigilancia/models/atividade_model.dart';
 import 'package:geovigilancia/models/bairro_model.dart';
 import 'package:geovigilancia/pages/menu/home_page.dart';
 import 'package:geovigilancia/pages/bairro/form_bairro_page.dart';
-
-// <<< ADICIONE ESTA LINHA ABAIXO >>>
 import 'package:geovigilancia/pages/bairro/detalhes_bairro_page.dart'; 
-
 
 class DetalhesAtividadePage extends StatefulWidget {
   final Atividade atividade;
@@ -26,12 +19,10 @@ class DetalhesAtividadePage extends StatefulWidget {
 }
 
 class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
-  // <<< CORREÇÃO 1: O Future agora busca uma lista de Bairro >>>
   late Future<List<Bairro>> _bairrosFuture;
   final dbHelper = DatabaseHelper.instance;
 
   bool _isSelectionMode = false;
-  // O Set agora guarda o ID do bairro (que é uma String)
   final Set<String> _selectedBairros = {};
 
   @override
@@ -45,7 +36,6 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
       setState(() {
         _isSelectionMode = false;
         _selectedBairros.clear();
-        // <<< CORREÇÃO 2: Chama o método correto do DB Helper >>>
         _bairrosFuture = dbHelper.getBairrosDaAtividade(widget.atividade.id!);
       });
     }
@@ -74,7 +64,6 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
     });
   }
   
-  // <<< CORREÇÃO 3: Lógica de exclusão adaptada para Bairro >>>
   Future<void> _deleteBairro(Bairro bairro) async {
      final bool? confirmar = await showDialog<bool>(
       context: context,
@@ -92,17 +81,19 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
       ),
     );
 
-    if (confirmar == true && mounted) {
+    if (confirmar == true) {
       await dbHelper.deleteBairro(bairro.id, bairro.atividadeId);
       
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Bairro apagado.'),
-          backgroundColor: Colors.red));
-      _carregarBairros();
+      // <<< CORREÇÃO APLICADA AQUI >>>
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Bairro apagado.'),
+            backgroundColor: Colors.red));
+        _carregarBairros();
+      }
     }
   }
 
-  // <<< CORREÇÃO 4: Navegação adaptada para Bairro >>>
   void _navegarParaNovoBairro() async {
     final bool? bairroCriado = await Navigator.push<bool>(
       context,
@@ -205,13 +196,13 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
             child: Text(
-              "Bairros da Atividade", // Título adaptado
+              "Bairros da Atividade",
               style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Theme.of(context).colorScheme.primary),
             ),
           ),
 
           Expanded(
-            child: FutureBuilder<List<Bairro>>( // <<< CORREÇÃO: Tipagem para Bairro >>>
+            child: FutureBuilder<List<Bairro>>(
               future: _bairrosFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -286,7 +277,6 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
                           },
                           leading: CircleAvatar(
                             backgroundColor: isSelected ? Theme.of(context).colorScheme.primary : null,
-                            // Ícone adaptado para bairro/localidade
                             child: Icon(isSelected ? Icons.check : Icons.location_city_outlined),
                           ),
                           title: Text(bairro.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -303,7 +293,6 @@ class _DetalhesAtividadePageState extends State<DetalhesAtividadePage> {
           ),
         ],
       ),
-      // SpeedDial removido, pois a única ação agora é adicionar bairro
       floatingActionButton: _isSelectionMode 
         ? null 
         : FloatingActionButton.extended(

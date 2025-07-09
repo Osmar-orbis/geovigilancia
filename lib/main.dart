@@ -16,7 +16,7 @@ import 'package:geovigilancia/providers/map_provider.dart';
 import 'package:geovigilancia/providers/team_provider.dart';
 import 'package:geovigilancia/controller/login_controller.dart';
 // Import da nova página de campanhas
-import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart'; // <<< CORREÇÃO DE CAMINHO
+import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart';
 import 'package:geovigilancia/pages/menu/splash_page.dart';
 import 'package:geovigilancia/providers/license_provider.dart';
 
@@ -91,7 +91,7 @@ class MyApp extends StatelessWidget {
           },
           
           '/equipe': (context) => const EquipePage(),
-          '/home': (context) => const HomePage(title: 'GeoVigilância'), // Nenhuma mudança necessária aqui se a classe for 'HomePage'
+          '/home': (context) => const HomePage(title: 'GeoVigilância'),
           '/lista_campanhas': (context) => const ListaCampanhasPage(title: 'Minhas Campanhas'),
         },
         
@@ -141,7 +141,6 @@ class MyApp extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
       ),
-      // <<< CORREÇÃO AQUI >>>
       cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -167,7 +166,6 @@ class ErrorScreen extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
 
-  // <<< CORREÇÃO AQUI: 'const' removido >>>
   ErrorScreen({super.key, required this.message, this.onRetry});
 
   @override
@@ -200,7 +198,7 @@ class ErrorScreen extends StatelessWidget {
               if (onRetry != null)
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary, // Agora isso funciona
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                   ),
                   onPressed: onRetry,

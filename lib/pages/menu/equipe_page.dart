@@ -33,7 +33,7 @@ class _EquipePageState extends State<EquipePage> {
       if (user != null) {
         context.read<LicenseProvider>().loadLicense(user);
       }
-    }); // <<< PARÊNTESE E PONTO E VÍRGULA QUE FALTAVAM
+    });
   }
 
   void _continuar() async {

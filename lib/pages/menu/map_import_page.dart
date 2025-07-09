@@ -1,4 +1,4 @@
-// lib/pages/menu/map_import_page.dart (VERSÃO CORRIGIDA)
+// lib/pages/menu/map_import_page.dart (CORRIGIDO)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,8 +9,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-
-// <<< 1. IMPORTAR OS ARQUIVOS NECESSÁRIOS >>>
 import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/pages/vistorias/form_vistoria_page.dart';
 
@@ -285,7 +283,6 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: ID da vistoria não encontrado.')));
                           return;
                         }
-                        // <<< 2. CORREÇÃO NA CHAMADA AO BANCO E NA NAVEGAÇÃO >>>
                         final vistoria = await DatabaseHelper.instance.getVistoriaById(dbId);
                         if (!mounted || vistoria == null) return;
 
@@ -385,7 +382,6 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
   }
 }
 
-// A classe LocationMarker permanece a mesma
 class LocationMarker extends StatefulWidget {
   const LocationMarker({super.key});
 
