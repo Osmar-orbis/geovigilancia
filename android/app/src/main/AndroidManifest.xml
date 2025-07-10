@@ -1,19 +1,30 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">  <!-- <<< ADICIONADO PARA FERRAMENTAS DE COMPATIBILIDADE -->
 
+    <!-- Permissões básicas de internet e localização -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- 
+      Permissões de armazenamento. 
+      MANAGE_EXTERNAL_STORAGE é uma permissão poderosa. 
+      READ_EXTERNAL_STORAGE é necessário para compatibilidade com versões mais antigas do Android.
+    -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" /> <!-- <<< ADICIONADO PARA IGNORAR AVISOS DE ARMAZENAMENTO ESCOPEADO -->
+
+    <!-- Permissões de mídia (opcionais, mas boas para ImagePicker) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.CAMERA"/>
 
     <application
-        android:label="geoforestcoletor"
+        android:label="GeoVigilância"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:enableOnBackInvokedCallback="true">  <!-- LINHA ADICIONADA AQUI -->
+        android:requestLegacyExternalStorage="true"  
+        android:enableOnBackInvokedCallback="true">
         
         <activity
             android:name=".MainActivity"
@@ -33,9 +44,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- ======================================================= -->
-            <!-- <<< ADIÇÃO PARA ABRIR ARQUIVOS GEOJSON E JSON >>>         -->
-            <!-- ======================================================= -->
+            <!-- Filtro de Intent para abrir arquivos -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -44,13 +53,8 @@
                 <data android:scheme="file" />
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\\.geojson" />
-                <data android:pathPattern=".*\\..*\\.geojson" />
-                <data android:pathPattern=".*\\..*\\..*\\.geojson" />
                 <data android:pathPattern=".*\\.json" />
-                <data android:pathPattern=".*\\..*\\.json" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.json" />
             </intent-filter>
-
         </activity>
 
         <provider
@@ -63,7 +67,6 @@
                 android:resource="@xml/provider_paths" />
         </provider>
 
-        
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

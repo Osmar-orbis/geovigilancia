@@ -1,4 +1,4 @@
-// lib/pages/menu/equipe_page.dart
+// lib/pages/menu/equipe_page.dart (VERSÃO CORRIGIDA PARA O BYPASS)
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -17,34 +17,43 @@ class _EquipePageState extends State<EquipePage> {
   final _formKey = GlobalKey<FormState>();
   final _liderController = TextEditingController();
   final _ajudantesController = TextEditingController();
-  bool _isLoading = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    // Carrega os nomes usando o Provider assim que a tela é construída
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final teamProvider = Provider.of<TeamProvider>(context, listen: false);
       _liderController.text = teamProvider.lider ?? '';
       _ajudantesController.text = teamProvider.ajudantes ?? '';
 
-      // Carrega a licença do usuário atual
+      // <<< MUDANÇA PRINCIPAL AQUI >>>
+      // Comentamos a chamada ao loadLicense, pois ela espera o User do Firebase
+      // que não está disponível no modo de bypass.
+      /*
       final user = context.read<LoginController>().user;
       if (user != null) {
         context.read<LicenseProvider>().loadLicense(user);
       }
+      */
     });
+  }
+
+  @override
+  void dispose() {
+    _liderController.dispose();
+    _ajudantesController.dispose();
+    super.dispose();
   }
 
   void _continuar() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+      setState(() => _isSaving = true);
 
-      // Usa o provider para salvar os dados
       final teamProvider = Provider.of<TeamProvider>(context, listen: false);
       await teamProvider.setTeam(
-        _liderController.text,
-        _ajudantesController.text,
+        _liderController.text.trim(),
+        _ajudantesController.text.trim(),
       );
 
       if (mounted) {
@@ -55,6 +64,8 @@ class _EquipePageState extends State<EquipePage> {
 
   @override
   Widget build(BuildContext context) {
+    // A tela não precisa mais ser um Consumer do LicenseProvider,
+    // pois não estamos mais observando o estado de carregamento da licença.
     return Scaffold(
       appBar: AppBar(title: const Text('Identificação da Equipe')),
       body: SingleChildScrollView(
@@ -64,21 +75,21 @@ class _EquipePageState extends State<EquipePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.groups_outlined, size: 64, color: Colors.grey),
+              Icon(Icons.groups_outlined, size: 64, color: Theme.of(context).colorScheme.primary.withOpacity(0.6)),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Antes de começar, por favor, identifique a equipe de hoje.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.black54),
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 32),
               TextFormField(
                 controller: _liderController,
                 decoration: const InputDecoration(
                   labelText: 'Nome do Líder da Equipe',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person_outline),
                 ),
-                validator: (value) => value!.trim().isEmpty
+                validator: (value) => (value == null || value.trim().isEmpty)
                     ? 'O nome do líder é obrigatório'
                     : null,
               ),
@@ -88,16 +99,13 @@ class _EquipePageState extends State<EquipePage> {
                 decoration: const InputDecoration(
                   labelText: 'Nomes dos Ajudantes',
                   hintText: 'Ex: João, Maria, Pedro',
-                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.group_outlined),
                 ),
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: _isLoading ? null : _continuar,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isLoading
+                onPressed: _isSaving ? null : _continuar,
+                child: _isSaving
                     ? const SizedBox(
                         height: 24,
                         width: 24,

@@ -1,4 +1,4 @@
-// lib/main.dart (VERSÃO CORRIGIDA E ADAPTADA PARA GEOVIGILÂNCIA)
+// lib/main.dart (VERSÃO SEM SPLASH PAGE PARA TESTES)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -18,7 +18,7 @@ import 'package:geovigilancia/providers/map_provider.dart';
 import 'package:geovigilancia/providers/team_provider.dart';
 import 'package:geovigilancia/controller/login_controller.dart';
 import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart';
-import 'package:geovigilancia/pages/menu/splash_page.dart';
+// import 'package:geovigilancia/pages/menu/splash_page.dart'; // Import da splash não é mais necessário
 import 'package:geovigilancia/providers/license_provider.dart';
 
 
@@ -32,33 +32,9 @@ Future<void> main() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
-
-  // Bloco Firebase comentado para bypass
-  /*
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    runApp(const MyApp());
-  } catch (e) {
-    runApp(
-      MaterialApp(
-        home: ErrorScreen(
-          message: 'Falha ao inicializar o Firebase:\n${e.toString()}',
-          onRetry: () => main(),
-        ),
-      ),
-    );
-  }
-  */
-
-  // <<< CORREÇÃO APLICADA AQUI >>>
-  // Adiciona a chamada runApp() para iniciar o aplicativo,
-  // já que ela foi comentada dentro do bloco try-catch.
+  
   runApp(const MyApp());
-
-} // <<< A FUNÇÃO main() TERMINA AQUI. A CLASSE MyApp FICA FORA.
-
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -78,17 +54,22 @@ class MyApp extends StatelessWidget {
         theme: _buildThemeData(Brightness.light),
         darkTheme: _buildThemeData(Brightness.dark),
         
-        initialRoute: '/', 
+        // <<< MUDANÇA PRINCIPAL AQUI >>>
+        // A rota inicial agora é a de verificação de autenticação.
+        initialRoute: '/auth_check', 
         
         routes: {
-          '/': (context) => const SplashPage(),
+          // A rota '/' que apontava para a SplashPage foi removida por enquanto.
+          // Você pode adicioná-la de volta no futuro.
           
           '/auth_check': (context) {
+            // Para pular o login durante os testes:
+            return const LoginPage(); 
+
+            // Lógica original (será reativada com o Firebase)
+            /*
             return Consumer<LoginController>(
               builder: (context, loginController, child) {
-                // Para pular o login durante os testes, descomente a linha abaixo:
-                // return const EquipePage(); 
-
                 if (!loginController.isInitialized) {
                   return const Scaffold(
                     body: Center(child: CircularProgressIndicator()),
@@ -102,6 +83,7 @@ class MyApp extends StatelessWidget {
                 }
               },
             );
+            */
           },
           
           '/equipe': (context) => const EquipePage(),
@@ -128,6 +110,7 @@ class MyApp extends StatelessWidget {
     );
   }
 
+  // O resto do arquivo (ThemeData, ErrorScreen) permanece o mesmo...
   ThemeData _buildThemeData(Brightness brightness) {
     final baseColor = brightness == Brightness.light ? const Color(0xFF0D47A1) : Colors.blue.shade800;
     final secondaryColor = Colors.amber.shade700;
@@ -162,7 +145,7 @@ class MyApp extends StatelessWidget {
       ),
       textTheme: TextTheme(
         headlineMedium: TextStyle(color: brightness == Brightness.light ? baseColor : Colors.white, fontWeight: FontWeight.bold),
-        titleLarge: TextStyle(color: brightness == Brightness.light ? Colors.black87 : Colors.white), // Ajuste para melhor contraste
+        titleLarge: TextStyle(color: brightness == Brightness.light ? Colors.black87 : Colors.white),
         bodyLarge: TextStyle(color: brightness == Brightness.light ? Colors.black87 : Colors.white70),
         bodyMedium: TextStyle(color: brightness == Brightness.light ? Colors.black54 : Colors.white60),
       ),
