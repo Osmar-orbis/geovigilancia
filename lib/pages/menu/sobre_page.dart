@@ -34,7 +34,7 @@ class SobrePage extends StatelessWidget {
 
               // O título do aplicativo.
               Text(
-                'Geo Forest Analytics',
+                'Geo Vigilância',
                 style: theme.textTheme.headlineMedium?.copyWith(
                   color: theme.colorScheme.primary,
                 ),

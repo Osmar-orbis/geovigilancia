@@ -1,13 +1,11 @@
-// lib/widgets/foco_dialog.dart (ADAPTADO PARA GEOVIGILÂNCIA)
+// lib/widgets/foco_dialog.dart (VERSÃO ATUALIZADA COM FOTO)
 
+import 'dart:io';
 import 'package:flutter/material.dart';
-// <<< MUDANÇA: Imports dos novos modelos e do DB Helper >>>
 import 'package:geovigilancia/models/foco_model.dart';
 import 'package:geovigilancia/models/tipo_criadouro_model.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
-
-// <<< REMOÇÃO: A classe DialogResult foi removida por simplicidade. >>>
-// O diálogo agora retorna diretamente um objeto Foco ou null.
+import 'package:image_picker/image_picker.dart';
 
 class FocoDialog extends StatefulWidget {
   final Foco? focoParaEditar;
@@ -29,20 +27,21 @@ class _FocoDialogState extends State<FocoDialog> {
   final _formKey = GlobalKey<FormState>();
   final dbHelper = DatabaseHelper.instance;
 
-  // <<< MUDANÇA: Estados para os novos campos de Foco >>>
   String? _tipoCriadouroSelecionado;
   bool _larvasEncontradas = false;
   String? _tratamentoRealizado;
-  // (fotoUrl seria adicionado aqui se fôssemos capturar a foto dentro do dialog)
 
-  // Estado para carregar os tipos de criadouro do banco
+  // --- Estados para a nova funcionalidade de foto ---
+  String? _caminhoFoto;
+  final ImagePicker _picker = ImagePicker();
+  // ---
+
   late Future<List<TipoCriadouro>> _tiposCriadouroFuture;
   final List<String> _opcoesTratamento = ['Eliminação Mecânica', 'Larvicida', 'Orientação', 'Não Tratado'];
 
   @override
   void initState() {
     super.initState();
-    // Carrega a lista de tipos de criadouro do banco de dados
     _tiposCriadouroFuture = dbHelper.getTodosTiposCriadouro();
 
     if (widget.isEditing) {
@@ -50,29 +49,49 @@ class _FocoDialogState extends State<FocoDialog> {
       _tipoCriadouroSelecionado = foco.tipoCriadouro;
       _larvasEncontradas = foco.larvasEncontradas;
       _tratamentoRealizado = foco.tratamentoRealizado;
+      _caminhoFoto = foco.fotoUrl; // Carrega o caminho da foto, se houver
     }
   }
 
   @override
   void dispose() {
-    // Não temos mais controllers para dar dispose
     super.dispose();
   }
 
-  // <<< MUDANÇA: Lógica de submissão simplificada >>>
+  // Função para capturar imagem da câmera ou galeria
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 80, // Comprime a imagem para economizar espaço
+        maxWidth: 1024,   // Redimensiona para uma largura máxima
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _caminhoFoto = pickedFile.path;
+        });
+      }
+    } catch (e) {
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao selecionar imagem: $e'), backgroundColor: Colors.red)
+        );
+      }
+    }
+  }
+
+  // Função de submissão do formulário
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      // Cria o objeto Foco com os dados do formulário
       final foco = Foco(
         id: widget.focoParaEditar?.id,
         vistoriaId: widget.vistoriaId,
         tipoCriadouro: _tipoCriadouroSelecionado!,
         larvasEncontradas: _larvasEncontradas,
         tratamentoRealizado: _tratamentoRealizado,
-        // fotoUrl: ... (a ser implementado)
+        fotoUrl: _caminhoFoto, // Passa o caminho da foto para o objeto Foco
       );
-
-      // Retorna o objeto Foco para a tela anterior
+      // Retorna o objeto Foco (novo ou editado) para a tela anterior
       Navigator.of(context).pop(foco);
     }
   }
@@ -83,6 +102,7 @@ class _FocoDialogState extends State<FocoDialog> {
 
     return Dialog(
       insetPadding: const EdgeInsets.all(16.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: SingleChildScrollView(
@@ -95,14 +115,14 @@ class _FocoDialogState extends State<FocoDialog> {
                 style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               Form(
                 key: _formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // <<< MUDANÇA: Dropdown para Tipos de Criadouro >>>
+                    // Dropdown para Tipos de Criadouro
                     FutureBuilder<List<TipoCriadouro>>(
                       future: _tiposCriadouroFuture,
                       builder: (context, snapshot) {
@@ -113,13 +133,12 @@ class _FocoDialogState extends State<FocoDialog> {
                           return const Text('Erro ao carregar tipos de criadouro.');
                         }
                         final tipos = snapshot.data!;
-                        // Garante que o valor selecionado esteja na lista
                         if (_tipoCriadouroSelecionado != null && !tipos.any((t) => t.nome == _tipoCriadouroSelecionado)) {
                           _tipoCriadouroSelecionado = null;
                         }
                         return DropdownButtonFormField<String>(
                           value: _tipoCriadouroSelecionado,
-                          decoration: const InputDecoration(labelText: 'Tipo de Criadouro'),
+                          decoration: const InputDecoration(labelText: 'Tipo de Criadouro', border: OutlineInputBorder()),
                           items: tipos.map((tc) => DropdownMenuItem(value: tc.nome, child: Text(tc.nome))).toList(),
                           onChanged: (value) => setState(() => _tipoCriadouroSelecionado = value),
                           validator: (v) => v == null ? 'Campo obrigatório' : null,
@@ -128,7 +147,7 @@ class _FocoDialogState extends State<FocoDialog> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // <<< MUDANÇA: Switch para Larvas Encontradas >>>
+                    // Switch para Larvas Encontradas
                     SwitchListTile(
                       title: const Text('Larvas Encontradas?'),
                       value: _larvasEncontradas,
@@ -138,20 +157,28 @@ class _FocoDialogState extends State<FocoDialog> {
                     
                     const SizedBox(height: 16),
 
-                    // <<< MUDANÇA: Dropdown para Tratamento Realizado >>>
+                    // Dropdown para Tratamento Realizado
                     DropdownButtonFormField<String>(
                       value: _tratamentoRealizado,
-                      decoration: const InputDecoration(labelText: 'Tratamento Realizado'),
+                      decoration: const InputDecoration(labelText: 'Tratamento Realizado', border: OutlineInputBorder()),
                       items: _opcoesTratamento.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                       onChanged: (value) => setState(() => _tratamentoRealizado = value),
                        validator: (v) => v == null ? 'Campo obrigatório' : null,
                     ),
+                    
+                    const SizedBox(height: 24),
+
+                    // --- NOVA SEÇÃO DE FOTO ADICIONADA AQUI ---
+                    Text('Foto do Foco (Opcional)', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    _buildPhotoSection(),
+                    // --- FIM DA SEÇÃO DE FOTO ---
                   ],
                 ),
               ),
               const SizedBox(height: 24),
               
-              // <<< MUDANÇA: Botões simplificados >>>
+              // Botões de ação
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -171,6 +198,57 @@ class _FocoDialogState extends State<FocoDialog> {
           ),
         ),
       ),
+    );
+  }
+
+  // Widget separado para a lógica da foto, deixando o build principal mais limpo
+  Widget _buildPhotoSection() {
+    return Column(
+      children: [
+        Container(
+          height: 150,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey.shade200,
+          ),
+          child: _caminhoFoto != null
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(File(_caminhoFoto!), fit: BoxFit.cover),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: InkWell(
+                      onTap: () => setState(() => _caminhoFoto = null),
+                      child: const CircleAvatar(
+                        radius: 14,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.close, color: Colors.red, size: 18),
+                      ),
+                    ),
+                  )
+                ],
+              )
+            : const Center(
+                child: Icon(Icons.camera_alt_outlined, size: 40, color: Colors.grey),
+              ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.camera), icon: const Icon(Icons.camera_alt_outlined), label: const Text('Câmera'))),
+            const SizedBox(width: 8),
+            Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined), label: const Text('Galeria'))),
+          ],
+        )
+      ],
     );
   }
 }

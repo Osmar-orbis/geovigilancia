@@ -1,10 +1,13 @@
-// lib/pages/menu/configuracoes_page.dart (VERSÃO COM UTM E ADAPTADA PARA GEOVIGILÂNCIA)
+// lib/pages/menu/configuracoes_page.dart (VERSÃO CORRIGIDA PARA RODAR OFFLINE)
 
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart'; // <<< IMPORT NECESSÁRIO ADICIONADO AQUI
 import 'package:flutter/material.dart';
-import 'package:geovigilancia/controller/login_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// Imports que dependem do Firebase são comentados ou não utilizados no modo offline
+// import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:geovigilancia/controller/login_controller.dart';
 
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
 import 'package:geovigilancia/providers/license_provider.dart';
@@ -84,29 +87,22 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
   }
 
   Future<void> _handleLogout() async {
-    await _mostrarDialogoLimpeza(
-      titulo: 'Confirmar Saída',
-      conteudo: 'Tem certeza de que deseja sair da sua conta?',
-      isDestructive: false,
-      onConfirmar: () async {
-        context.read<LicenseProvider>().clearLicense();
-        await context.read<LoginController>().signOut();
-      },
+    // Como estamos em modo offline, apenas mostramos uma mensagem.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Logout não aplicável em modo offline.'))
     );
   }
 
-  // <<< FUNÇÃO ADAPTADA >>>
   Future<void> _limparTodasAsVistorias() async {
     await _mostrarDialogoLimpeza(
       titulo: 'Limpar Todas as Vistorias',
       conteudo: 'Tem certeza? TODOS os dados de vistorias e focos serão apagados permanentemente do dispositivo.',
       onConfirmar: () async {
-        // Supondo que você criará este método no seu DatabaseHelper.
-        // Ele deve executar "DELETE FROM vistorias" e "DELETE FROM focos".
-        // await dbHelper.limparTodasAsVistorias(); 
+        // A lógica de exclusão real deve estar no DatabaseHelper.
+        // Por enquanto, apenas exibimos a mensagem.
         if(mounted) {
            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Todas as vistorias foram apagadas!', style: TextStyle(color: Colors.white)),
+            content: Text('Função de apagar vistorias a ser implementada.', style: TextStyle(color: Colors.white)),
             backgroundColor: Colors.red,
           ));
         }
@@ -114,16 +110,17 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
     );
   }
   
-  // <<< FUNÇÃO ADAPTADA >>>
   Future<void> _arquivarColetasExportadas() async {
      await _mostrarDialogoLimpeza(
       titulo: 'Arquivar Coletas',
       conteudo: 'Isso removerá do dispositivo todas as vistorias já marcadas como exportadas. Deseja continuar?',
       onConfirmar: () async {
-        // Supondo que você criará este método no seu DatabaseHelper.
-        // Ele deve executar "DELETE FROM vistorias WHERE exportada = 1".
-        // final vistoriasCount = await dbHelper.limparVistoriasExportadas();
-        // if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$vistoriasCount vistorias arquivadas.')));
+        if(mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Função de arquivar coletas a ser implementada.'),
+            backgroundColor: Colors.blueAccent,
+          ));
+        }
       },
     );
   }
@@ -153,26 +150,24 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
                           children: [
                             Padding(
                               padding: const EdgeInsets.all(16.0),
-                              child: licenseProvider.isLoading
-                                  ? const Center(child: CircularProgressIndicator())
-                                  : licenseProvider.error != null
-                                    ? Text('Erro ao carregar licença: ${licenseProvider.error}', style: const TextStyle(color: Colors.red))
-                                    : licenseProvider.licenseInfo == null
-                                      ? const Text('Não foi possível carregar os dados da licença.')
-                                      : Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text('Usuário: ${FirebaseAuth.instance.currentUser?.email ?? 'Desconhecido'}'),
-                                            const SizedBox(height: 8),
-                                            Text('Plano: ${licenseProvider.licenseInfo!.planName}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                          ],
-                                        ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // <<< CORREÇÃO APLICADA AQUI (Text e kDebugMode) >>>
+                                  // O kDebugMode verifica se estamos no modo de desenvolvimento.
+                                  Text(kDebugMode
+                                      ? 'Usuário: Modo Desenvolvedor'
+                                      : 'Usuário: Não conectado'),
+                                  const SizedBox(height: 8),
+                                  const Text('Plano: Básico (Offline)', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
                             ),
                             const Divider(height: 1),
                             ListTile(
                               leading: const Icon(Icons.logout, color: Colors.red),
                               title: const Text('Sair da Conta', style: TextStyle(color: Colors.red)),
-                              onTap: _handleLogout,
+                              onTap: _handleLogout, // A função já está segura para o modo offline.
                             ),
                           ],
                         ),
@@ -222,15 +217,14 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
                         subtitle: const Text('Apaga TODAS as vistorias e focos salvos.'),
                         onTap: _limparTodasAsVistorias,
                       ),
-                      // A opção de limpar cubagens foi removida pois não existe mais no app de vigilância
                       
                       const Divider(thickness: 1, height: 48),
                       
                       Center(
                         child: ElevatedButton(
                           onPressed: _diagnosticarPermissoes,
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
-                          child: const Text('Debug de Permissões', style: TextStyle(color: Colors.black)),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[600]),
+                          child: const Text('Gerenciar Permissões', style: TextStyle(color: Colors.black)),
                         ),
                       ),
                       const SizedBox(height: 20),
