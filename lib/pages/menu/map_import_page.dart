@@ -1,16 +1,14 @@
-// lib/pages/menu/map_import_page.dart (CORRIGIDO PARA MOSTRAR PONTOS E POLÍGONOS)
+// lib/pages/menu/map_import_page.dart (VERSÃO FINAL COM PROVIDER CORRIGIDO)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geovigilancia/models/sample_point.dart';
+import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/providers/map_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:geovigilancia/data/datasources/local/database_helper.dart';
 import 'package:geovigilancia/pages/vistorias/form_vistoria_page.dart';
-
 
 class MapImportPage extends StatefulWidget {
   const MapImportPage({super.key});
@@ -27,17 +25,19 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
     super.didChangeDependencies();
     MapProvider.routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
   }
-  
+
   @override
   void didPopNext() {
     super.didPopNext();
-    debugPrint("Mapa visível novamente, recarregando os dados das amostras...");
-    context.read<MapProvider>().loadSamplesParaAtividade();
+    debugPrint("Mapa visível novamente, recarregando os dados das vistorias...");
+    // Aqui usamos context.read, pois está dentro de um método de ciclo de vida onde é seguro.
+    context.read<MapProvider>().loadVistoriasParaAtividade();
   }
 
   @override
   void dispose() {
     MapProvider.routeObserver.unsubscribe(this);
+    // Aqui usamos a sintaxe completa pois é mais seguro em `dispose`.
     final mapProvider = Provider.of<MapProvider>(context, listen: false);
     if (mapProvider.isFollowingUser) {
       mapProvider.toggleFollowingUser();
@@ -45,24 +45,9 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
     super.dispose();
   }
 
-  Color _getMarkerColor(SampleStatus status) {
-    switch (status) {
-      case SampleStatus.open: return Colors.orange.shade300;
-      case SampleStatus.completed: return Colors.green;
-      case SampleStatus.exported: return Colors.blue;
-      case SampleStatus.untouched: return Colors.white;
-    }
-  }
-
-  Color _getMarkerTextColor(SampleStatus status) {
-    switch (status) {
-      case SampleStatus.open: case SampleStatus.untouched: return Colors.black;
-      case SampleStatus.completed: case SampleStatus.exported: return Colors.white;
-    }
-  }
-
   Future<void> _handleImport() async {
-    final provider = context.read<MapProvider>();
+    // <<< CORREÇÃO APLICADA AQUI >>>
+    final provider = Provider.of<MapProvider>(context, listen: false);
     
     final bool? isPlano = await showDialog<bool>(
       context: context,
@@ -89,21 +74,20 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(resultMessage), duration: const Duration(seconds: 5)));
     
-    // <<< LÓGICA DE ZOOM CORRIGIDA >>>
-    // Prioriza o zoom nos polígonos, mas se não houver, foca nos pontos.
     if (provider.polygons.isNotEmpty) {
       _mapController.fitCamera(CameraFit.bounds(
           bounds: LatLngBounds.fromPoints(provider.polygons.expand((p) => p.points).toList()),
           padding: const EdgeInsets.all(50.0)));
-    } else if (provider.samplePoints.isNotEmpty) {
+    } else if (provider.vistorias.isNotEmpty) {
       _mapController.fitCamera(CameraFit.bounds(
-          bounds: LatLngBounds.fromPoints(provider.samplePoints.map((p) => p.position).toList()),
+          bounds: LatLngBounds.fromPoints(provider.vistorias.map((v) => v.position).toList()),
           padding: const EdgeInsets.all(50.0)));
     }
   }
   
   Future<void> _handleGenerateSamples() async {
-    final provider = context.read<MapProvider>();
+    // <<< CORREÇÃO APLICADA AQUI >>>
+    final provider = Provider.of<MapProvider>(context, listen: false);
     if (provider.polygons.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Importe ou desenhe os polígonos dos setores primeiro.')));
       return;
@@ -112,7 +96,6 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
     final density = await _showDensityDialog();
     if (density == null || !mounted) return;
     
-    // A função no provider agora é `gerarVistoriasParaAtividade`
     final resultMessage = await provider.gerarVistoriasParaAtividade(imoveisPorHectare: density);
     
     if(mounted) {
@@ -157,7 +140,8 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
   }
 
   Future<void> _handleLocationButtonPressed() async {
-    final provider = context.read<MapProvider>();
+    // <<< CORREÇÃO APLICADA AQUI >>>
+    final provider = Provider.of<MapProvider>(context, listen: false);
     if (provider.isFollowingUser) {
       final currentPosition = provider.currentUserPosition;
       if (currentPosition != null) {
@@ -240,6 +224,7 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
+    // Aqui usamos context.watch, pois queremos que a UI se reconstrua quando os dados do mapa mudarem.
     final mapProvider = context.watch<MapProvider>();
     final currentUserPosition = mapProvider.currentUserPosition;
     final isDrawing = mapProvider.isDrawing;
@@ -259,54 +244,54 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
               initialZoom: 4,
               onPositionChanged: (position, hasGesture) {
                 if(hasGesture && mapProvider.isFollowingUser) {
+                  // Aqui usamos context.read, pois estamos dentro de um callback e não queremos reconstruir, apenas chamar um método.
                   context.read<MapProvider>().toggleFollowingUser();
                 }
               },
-              onTap: (tapPosition, point) { if (isDrawing) mapProvider.addDrawnPoint(point); },
+              onTap: (tapPosition, point) { if (isDrawing) context.read<MapProvider>().addDrawnPoint(point); },
             ),
             children: [
               TileLayer(
                   urlTemplate: mapProvider.currentTileUrl,
                   userAgentPackageName: 'com.example.geovigilancia'),
               
-              // <<< MUDANÇA PRINCIPAL AQUI: Ambas as camadas são renderizadas se existirem >>>
-              // 1. Camada de Polígonos
               if (mapProvider.polygons.isNotEmpty)
                 PolygonLayer(polygons: mapProvider.polygons),
               
-              // 2. Camada de Marcadores (Pontos)
-              if (mapProvider.samplePoints.isNotEmpty)
+              if (mapProvider.vistorias.isNotEmpty)
                 MarkerLayer(
-                  markers: mapProvider.samplePoints.map((samplePoint) {
-                    final color = _getMarkerColor(samplePoint.status);
-                    final textColor = _getMarkerTextColor(samplePoint.status);
+                  markers: mapProvider.vistorias.map((vistoria) {
                     return Marker(
-                      width: 40.0, height: 40.0, point: samplePoint.position,
+                      width: 40.0,
+                      height: 40.0,
+                      point: vistoria.position,
                       child: GestureDetector(
                         onTap: () async {
                           if (!mounted) return;
-                          final dbId = samplePoint.data['dbId'] as int?;
-                          if (dbId == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: ID da vistoria não encontrado.')));
-                            return;
-                          }
-                          final vistoria = await DatabaseHelper.instance.getVistoriaById(dbId);
-                          if (!mounted || vistoria == null) return;
-
                           await Navigator.push<bool>(
                             context,
                             MaterialPageRoute(builder: (context) => FormVistoriaPage(vistoriaParaEditar: vistoria))
                           );
                         },
                         child: Container(
-                          decoration: BoxDecoration(color: color, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4, offset: const Offset(2, 2))]),
-                          child: Center(child: Text(samplePoint.id.toString(), style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14))),
+                          decoration: BoxDecoration(
+                            color: vistoria.status.cor, 
+                            shape: BoxShape.circle, 
+                            border: Border.all(color: Colors.white, width: 1.5),
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 4, offset: const Offset(1, 1))]
+                          ),
+                          child: Center(
+                            child: Icon(
+                              vistoria.status.icone,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
                         ),
                       ),
                     );
                   }).toList(),
                 ),
-              // <<< FIM DA MUDANÇA PRINCIPAL >>>
               
               if (isDrawing && mapProvider.drawnPoints.isNotEmpty)
                 PolylineLayer(polylines: [ Polyline(points: mapProvider.drawnPoints, strokeWidth: 2.0, color: Colors.red.withOpacity(0.8)), ]),
@@ -390,6 +375,7 @@ class _MapImportPageState extends State<MapImportPage> with RouteAware {
   }
 }
 
+// A classe LocationMarker não precisa de alterações.
 class LocationMarker extends StatefulWidget {
   const LocationMarker({super.key});
 

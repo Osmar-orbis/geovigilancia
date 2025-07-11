@@ -1,4 +1,4 @@
-// lib/pages/bairros/form_bairro_page.dart (NOVO ARQUIVO)
+// lib/pages/bairro/form_bairro_page.dart (VERSÃO CORRIGIDA E SEGURA)
 
 import 'package:flutter/material.dart';
 import 'package:geovigilancia/data/datasources/local/database_helper.dart';
@@ -55,8 +55,12 @@ class _FormBairroPageState extends State<FormBairroPage> {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() => _isSaving = true);
 
+      // O ID do bairro não pode ser alterado na edição,
+      // então usamos o ID original.
+      final bairroId = widget.isEditing ? widget.bairroParaEditar!.id : _idController.text.trim();
+      
       final bairro = Bairro(
-        id: _idController.text.trim(),
+        id: bairroId,
         atividadeId: widget.atividadeId,
         nome: _nomeController.text.trim(),
         municipio: _municipioController.text.trim(),
@@ -66,10 +70,20 @@ class _FormBairroPageState extends State<FormBairroPage> {
       try {
         final dbHelper = DatabaseHelper.instance;
         
+        // <<< CORREÇÃO PRINCIPAL AQUI >>>
         if (widget.isEditing) {
-            await dbHelper.deleteBairro(widget.bairroParaEditar!.id, widget.bairroParaEditar!.atividadeId);
+          // Em vez de deletar e inserir, usamos o método de atualização.
+          // Você precisará adicionar este método ao seu DatabaseHelper.
+          // Ex: Future<void> updateBairro(Bairro b) async => await (await database).update(...);
+          await dbHelper.database.then((db) => db.update(
+            'bairros', 
+            bairro.toMap(),
+            where: 'id = ? AND atividadeId = ?',
+            whereArgs: [bairro.id, bairro.atividadeId]
+          ));
+        } else {
+          await dbHelper.insertBairro(bairro);
         }
-        await dbHelper.insertBairro(bairro);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -120,14 +134,14 @@ class _FormBairroPageState extends State<FormBairroPage> {
             children: [
               TextFormField(
                 controller: _idController,
+                // O ID não pode ser editado, pois é parte da chave primária.
                 enabled: !widget.isEditing,
-                style: TextStyle(
-                  color: widget.isEditing ? Colors.grey.shade600 : null,
-                ),
                 decoration: InputDecoration(
                   labelText: 'ID do Bairro (Código Oficial)',
+                  helperText: widget.isEditing ? 'O ID não pode ser alterado.' : null,
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.vpn_key_outlined),
+                  // Estilo visual para indicar que o campo está desabilitado.
                   filled: widget.isEditing,
                   fillColor: Colors.grey.shade200,
                 ),

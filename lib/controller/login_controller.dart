@@ -1,17 +1,14 @@
-// lib/controller/login_controller.dart (VERSÃO CORRIGIDA PARA RODAR SEM FIREBASE)
+// lib/controller/login_controller.dart (VERSÃO ROBUSTA E SEGURA)
 
 import 'package:flutter/foundation.dart';
-// import 'package:firebase_auth/firebase_auth.dart'; // Comentado temporariamente
+import 'package:firebase_auth/firebase_auth.dart'; // Import do Firebase é reativado
 import 'package:geovigilancia/services/auth_service.dart';
-
-// Classe vazia para substituir a do Firebase e evitar erros
-class User {}
 
 class LoginController with ChangeNotifier {
   final AuthService _authService = AuthService();
 
   bool _isLoggedIn = false;
-  User? _user;
+  User? _user; // Usamos o tipo real do Firebase, que pode ser nulo.
   bool _isInitialized = false;
 
   bool get isLoggedIn => _isLoggedIn;
@@ -19,38 +16,63 @@ class LoginController with ChangeNotifier {
   bool get isInitialized => _isInitialized;
 
   LoginController() {
-    // <<< MUDANÇA 1: CHAMADA REMOVIDA DO CONSTRUTOR >>>
-    // checkLoginStatus(); 
-    
-    // <<< MUDANÇA 2: Definimos um estado inicial falso para rodar sem Firebase >>>
-    // Isso garante que o Consumer no main.dart não fique em loop de loading.
-    _isInitialized = true;
-    _isLoggedIn = false;
-    print('LoginController: Rodando em modo OFFLINE. Firebase bypassado.');
+    // A verificação é chamada sempre, mas se comporta de forma diferente
+    // dependendo se o app está em modo de DEBUG ou RELEASE.
+    checkLoginStatus(); 
   }
 
   void checkLoginStatus() {
-    // <<< MUDANÇA 3: A LÓGICA DO FIREBASE FOI COMENTADA >>>
-    /*
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
-      if (user == null) {
-        _isLoggedIn = false;
-        _user = null;
-        print('LoginController: Nenhum usuário logado.');
-      } else {
-        _isLoggedIn = true;
-        _user = user;
-        print('LoginController: Usuário ${user.email} está logado.');
-      }
-      
+    // A constante kDebugMode é true apenas em builds de depuração.
+    // Em produção (release), este bloco 'if' será falso.
+    if (kDebugMode) {
+      // MODO DE DESENVOLVIMENTO (OFFLINE)
+      print('LoginController: Rodando em modo DEBUG. Firebase bypassado.');
       _isInitialized = true;
+      _isLoggedIn = false; // Começa como deslogado
       notifyListeners();
-    });
-    */
+    } else {
+      // MODO DE PRODUÇÃO (ONLINE COM FIREBASE)
+      // Esta é a lógica original, que agora só roda em produção.
+      FirebaseAuth.instance.authStateChanges().listen((User? user) {
+        if (user == null) {
+          _isLoggedIn = false;
+          _user = null;
+          print('LoginController: Nenhum usuário logado.');
+        } else {
+          _isLoggedIn = true;
+          _user = user;
+          print('LoginController: Usuário ${user.email} está logado.');
+        }
+        
+        if (!_isInitialized) {
+          _isInitialized = true;
+        }
+        notifyListeners();
+      });
+    }
+  }
+
+  // >>> NOVO MÉTODO PARA O MODO DE DESENVOLVIMENTO <<<
+  /// Simula um login de desenvolvedor, acionando a mudança de estado.
+  void signInAsDeveloper() {
+    if (kDebugMode) {
+      _isLoggedIn = true;
+      _user = null; // Em modo dev, não precisamos de um objeto User.
+      print('LoginController: Login de desenvolvedor realizado.');
+      notifyListeners();
+    }
   }
 
   Future<void> signOut() async {
-    // A lógica de logout também é comentada, pois não há usuário para deslogar.
-    // await _authService.signOut();
+    // A lógica de logout também se adapta ao modo do app.
+    if (kDebugMode) {
+      _isLoggedIn = false;
+      _user = null;
+      print('LoginController: Logout de desenvolvedor realizado.');
+      notifyListeners();
+    } else {
+      await _authService.signOut();
+      // O listener do authStateChanges já vai atualizar o estado.
+    }
   }
 }

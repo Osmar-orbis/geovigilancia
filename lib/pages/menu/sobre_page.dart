@@ -45,7 +45,7 @@ class SobrePage extends StatelessWidget {
 
               // A descrição que você pediu.
               const Text(
-                'Geo Forest Analytics é um coletor florestal.',
+                'Geo Vigilância Analytics no controle da Dengue.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18.0,

@@ -1,11 +1,12 @@
-// lib/models/vistoria_model.dart (VERSÃO CORRIGIDA)
+// lib/models/vistoria_model.dart (VERSÃO CORRETA E FINAL)
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:geovigilancia/models/foco_model.dart'; 
+import 'package:geovigilancia/models/foco_model.dart';
+import 'package:latlong2/latlong.dart';
 
 enum StatusVisita {
-  realizada(Icons.check_circle_outline, Colors.green),
+  realizada(Icons.check_circle, Colors.green),
   fechada(Icons.lock_outline, Colors.orange),
   recusa(Icons.do_not_disturb_on_outlined, Colors.red),
   pendente(Icons.pending_outlined, Colors.grey);
@@ -21,17 +22,18 @@ class Vistoria {
   int? setorId;
   DateTime? dataColeta;
   
+  // Estes são campos "somente leitura" no formulário, então podem ser final
   final String? idBairro;
   final String? nomeBairro;
   final String? nomeSetor;
 
-  final String? identificadorImovel;
-  final String tipoImovel;
+  // <<< CORREÇÃO APLICADA AQUI: CAMPOS EDITÁVEIS NÃO SÃO 'final' >>>
+  String? identificadorImovel;
+  String tipoImovel;
+  String? resultado;
+  String? observacao;
   
-  // <<< MUDANÇA PRINCIPAL AQUI: 'final' removido de 'resultado' >>>
-  String? resultado; 
-  
-  final String? observacao;
+  // Estes campos são imutáveis após a criação ou são gerenciados internamente
   final double? latitude;
   final double? longitude;
   StatusVisita status;
@@ -39,6 +41,8 @@ class Vistoria {
   bool isSynced;
   List<String> photoPaths;
   List<Foco> focos;
+
+  LatLng get position => LatLng(latitude ?? 0.0, longitude ?? 0.0);
 
   Vistoria({
     this.dbId,
@@ -60,7 +64,6 @@ class Vistoria {
     this.focos = const [],
   });
 
-  // O método copyWith já lida com a alteração do 'resultado' corretamente.
   Vistoria copyWith({
     int? dbId,
     int? setorId,
@@ -88,7 +91,7 @@ class Vistoria {
       nomeSetor: nomeSetor ?? this.nomeSetor,
       identificadorImovel: identificadorImovel ?? this.identificadorImovel,
       tipoImovel: tipoImovel ?? this.tipoImovel,
-      resultado: resultado ?? this.resultado, // Esta linha agora funciona sem problemas
+      resultado: resultado ?? this.resultado,
       observacao: observacao ?? this.observacao,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
@@ -101,7 +104,6 @@ class Vistoria {
     );
   }
 
-  // O resto do arquivo (toMap, fromMap) não precisa de alterações.
   Map<String, dynamic> toMap() {
     return {
       'id': dbId,

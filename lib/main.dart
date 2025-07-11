@@ -1,4 +1,4 @@
-// lib/main.dart (VERSÃO SEM SPLASH PAGE PARA TESTES)
+// Arquivo: lib/main.dart (VERSÃO CORRIGIDA)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -18,7 +18,6 @@ import 'package:geovigilancia/providers/map_provider.dart';
 import 'package:geovigilancia/providers/team_provider.dart';
 import 'package:geovigilancia/controller/login_controller.dart';
 import 'package:geovigilancia/pages/campanhas/lista_campanhas_page.dart';
-// import 'package:geovigilancia/pages/menu/splash_page.dart'; // Import da splash não é mais necessário
 import 'package:geovigilancia/providers/license_provider.dart';
 
 
@@ -54,36 +53,32 @@ class MyApp extends StatelessWidget {
         theme: _buildThemeData(Brightness.light),
         darkTheme: _buildThemeData(Brightness.dark),
         
-        // <<< MUDANÇA PRINCIPAL AQUI >>>
-        // A rota inicial agora é a de verificação de autenticação.
         initialRoute: '/auth_check', 
         
         routes: {
-          // A rota '/' que apontava para a SplashPage foi removida por enquanto.
-          // Você pode adicioná-la de volta no futuro.
-          
+          // <<< CORREÇÃO 2: LÓGICA DE AUTENTICAÇÃO REATIVADA >>>
+          // O app agora sempre verifica o status do login primeiro.
+          // Para pular o login em desenvolvimento, use o botão na própria LoginPage.
           '/auth_check': (context) {
-            // Para pular o login durante os testes:
-            return const LoginPage(); 
-
-            // Lógica original (será reativada com o Firebase)
-            /*
             return Consumer<LoginController>(
               builder: (context, loginController, child) {
+                // Enquanto o controller verifica o estado (no futuro, com Firebase), mostra um loading.
                 if (!loginController.isInitialized) {
                   return const Scaffold(
                     body: Center(child: CircularProgressIndicator()),
                   );
                 }
                 
+                // Se o usuário estiver logado, vai para a tela de equipe.
                 if (loginController.isLoggedIn) {
                   return const EquipePage();
-                } else {
+                } 
+                // Senão, vai para a tela de login.
+                else {
                   return const LoginPage();
                 }
               },
             );
-            */
           },
           
           '/equipe': (context) => const EquipePage(),
@@ -101,16 +96,14 @@ class MyApp extends StatelessWidget {
               onRetry: null,
             );
           };
-          return MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
-            child: child!,
-          );
+          // <<< CORREÇÃO 1: REMOVIDO O MEDIQUERY QUE QUEBRAVA A ACESSIBILIDADE >>>
+          // O aplicativo agora respeitará o tamanho da fonte definido pelo usuário no sistema.
+          return child!;
         },
       ),
     );
   }
 
-  // O resto do arquivo (ThemeData, ErrorScreen) permanece o mesmo...
   ThemeData _buildThemeData(Brightness brightness) {
     final baseColor = brightness == Brightness.light ? const Color(0xFF0D47A1) : Colors.blue.shade800;
     final secondaryColor = Colors.amber.shade700;

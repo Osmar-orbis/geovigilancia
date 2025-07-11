@@ -1,4 +1,4 @@
-// lib/pages/vistorias/form_vistoria_page.dart (VERSÃO CORRIGIDA E LIMPA)
+// lib/pages/vistorias/form_vistoria_page.dart (VERSÃO 100% COMPLETA E CORRIGIDA)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -8,6 +8,8 @@ import 'package:geovigilancia/models/setor_model.dart';
 import 'package:geovigilancia/models/vistoria_model.dart';
 import 'package:geovigilancia/pages/vistorias/lista_focos_page.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 class FormVistoriaPage extends StatefulWidget {
   final Vistoria? vistoriaParaEditar;
@@ -23,30 +25,17 @@ class FormVistoriaPage extends StatefulWidget {
 class _FormVistoriaPageState extends State<FormVistoriaPage> {
   final _formKey = GlobalKey<FormState>();
   final dbHelper = DatabaseHelper.instance;
+  
   late Vistoria _vistoriaAtual;
-
-  final _bairroController = TextEditingController();
-  final _setorController = TextEditingController();
-  final _identificadorImovelController = TextEditingController();
-  final _observacaoController = TextEditingController();
-
-  StatusVisita? _statusVisitaSelecionado;
-  String? _tipoImovelSelecionado;
   
   final List<String> _opcoesTipoImovel = ['Residencial', 'Comercial', 'Terreno Baldio', 'Ponto Estratégico', 'Outro'];
 
-  Position? _posicaoAtualExibicao;
-  bool _buscandoLocalizacao = false;
-  String? _erroLocalizacao;
-  bool _salvando = false;
-  
-  bool _isModoEdicao = false;
-  // <<< CORREÇÃO 1: REMOVIDA A VARIÁVEL NÃO UTILIZADA >>>
-  // bool _isVinculadoASetor = false; 
+  bool _isLoading = true;
+  bool _isSaving = false;
+  bool _isReadOnly = false;
+  bool get _isModoEdicao => widget.vistoriaParaEditar != null;
 
   final ImagePicker _picker = ImagePicker();
-  
-  bool _isReadOnly = false;
 
   @override
   void initState() {
@@ -55,190 +44,133 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
   }
 
   Future<void> _setupInitialData() async {
-    setState(() { _salvando = true; });
-
-    if (widget.vistoriaParaEditar != null) {
-      _isModoEdicao = true;
-      final vistoriaDoBanco = await dbHelper.getVistoriaById(widget.vistoriaParaEditar!.dbId!);
-      
-      if (vistoriaDoBanco != null) {
-        _vistoriaAtual = vistoriaDoBanco;
-        _vistoriaAtual.focos = await dbHelper.getFocosDaVistoria(_vistoriaAtual.dbId!);
-      } else {
-        _vistoriaAtual = widget.vistoriaParaEditar!;
-      }
-      
-      // <<< CORREÇÃO 2: REMOVIDA A ATRIBUIÇÃO DA VARIÁVEL >>>
-      // _isVinculadoASetor = _vistoriaAtual.setorId != null; 
-
-      if (_vistoriaAtual.status != StatusVisita.pendente && _vistoriaAtual.status != StatusVisita.realizada) {
-        _isReadOnly = true;
+    Vistoria vistoriaBase;
+    if (_isModoEdicao) {
+      vistoriaBase = (await dbHelper.getVistoriaById(widget.vistoriaParaEditar!.dbId!)) ?? widget.vistoriaParaEditar!;
+      if (vistoriaBase.dbId != null) {
+        vistoriaBase.focos = await dbHelper.getFocosDaVistoria(vistoriaBase.dbId!);
       }
     } else {
-      _isModoEdicao = false;
-      _isReadOnly = false;
-      // _isVinculadoASetor = true; // Esta linha também pode ser removida se existir.
-      _vistoriaAtual = Vistoria(
+      vistoriaBase = Vistoria(
         setorId: widget.setor!.id,
-        tipoImovel: '', 
+        tipoImovel: 'Residencial',
         dataColeta: DateTime.now(),
+        status: StatusVisita.pendente,
         nomeBairro: widget.setor!.bairroNome,
         nomeSetor: widget.setor!.nome,
         idBairro: widget.setor!.bairroId,
       );
     }
-    _preencherControllersComDadosAtuais();
-    setState(() { _salvando = false; });
-  }
 
-  void _preencherControllersComDadosAtuais() {
-    final v = _vistoriaAtual;
-    _bairroController.text = v.nomeBairro ?? '';
-    _setorController.text = v.nomeSetor ?? '';
-    _identificadorImovelController.text = v.identificadorImovel ?? '';
-    _observacaoController.text = v.observacao ?? '';
-    
-    _statusVisitaSelecionado = v.status;
-    if (_opcoesTipoImovel.contains(v.tipoImovel)) {
-      _tipoImovelSelecionado = v.tipoImovel;
-    }
-    
-    if (v.latitude != null && v.longitude != null) {
-      _posicaoAtualExibicao = Position(latitude: v.latitude!, longitude: v.longitude!, timestamp: DateTime.now(), accuracy: 0.0, altitude: 0.0, altitudeAccuracy: 0.0, heading: 0.0, headingAccuracy: 0.0, speed: 0.0, speedAccuracy: 0.0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _bairroController.dispose();
-    _setorController.dispose();
-    _identificadorImovelController.dispose();
-    _observacaoController.dispose();
-    super.dispose();
+    setState(() {
+      _vistoriaAtual = vistoriaBase;
+      _isReadOnly = _vistoriaAtual.status != StatusVisita.pendente;
+      _isLoading = false;
+    });
   }
   
-  Vistoria _construirObjetoVistoriaParaSalvar() {
-    return _vistoriaAtual.copyWith(
-      identificadorImovel: _identificadorImovelController.text.trim(),
-      nomeBairro: _bairroController.text.trim(),
-      nomeSetor: _setorController.text.trim(),
-      observacao: _observacaoController.text.trim(),
-      tipoImovel: _tipoImovelSelecionado ?? '',
-      status: _statusVisitaSelecionado,
-    );
+  Future<void> _salvarVistoria({
+    required StatusVisita novoStatus, 
+    bool navegarParaFocos = false,
+    bool mostrarSnackbar = true,
+  }) async {
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, preencha todos os campos obrigatórios.'), backgroundColor: Colors.orange)
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final vistoriaParaSalvar = _vistoriaAtual.copyWith(
+        status: novoStatus,
+        resultado: novoStatus == StatusVisita.realizada 
+          ? (_vistoriaAtual.focos.isNotEmpty ? 'Com Foco' : 'Sem Foco')
+          : 'Não Vistoriado',
+      );
+      
+      final vistoriaSalva = await dbHelper.saveFullVistoria(vistoriaParaSalvar, _vistoriaAtual.focos);
+      
+      setState(() {
+        _vistoriaAtual = vistoriaSalva;
+      });
+
+      if (!mounted) return;
+      if (mostrarSnackbar) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vistoria salva com sucesso!'), backgroundColor: Colors.green, duration: Duration(seconds: 2))
+        );
+      }
+      
+      if (navegarParaFocos) {
+        await Navigator.pushReplacement(context, MaterialPageRoute(
+          builder: (_) => ListaFocosPage(vistoria: _vistoriaAtual)
+        ));
+      } else if (!_isModoEdicao && !navegarParaFocos) {
+        Navigator.of(context).pop(true);
+      }
+
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<String?> _copiarERenomearImagem(XFile imagemOriginal) async {
+    if (_vistoriaAtual.dbId == null) return null;
+    try {
+      final diretorioApp = await getApplicationDocumentsDirectory();
+      final pastaImagens = Directory(p.join(diretorioApp.path, 'imagens_vistorias'));
+      if (!await pastaImagens.exists()) {
+        await pastaImagens.create(recursive: true);
+      }
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final novoNome = 'V${_vistoriaAtual.dbId}_GERAL_$timestamp.jpg';
+      final novoCaminho = p.join(pastaImagens.path, novoNome);
+
+      final arquivoOriginal = File(imagemOriginal.path);
+      await arquivoOriginal.copy(novoCaminho);
+      return novoCaminho;
+    } catch (e) {
+      debugPrint("Erro ao copiar imagem: $e");
+      return null;
+    }
   }
   
   Future<void> _pickImage(ImageSource source) async {
-    try {
-      final XFile? pickedFile = await _picker.pickImage(source: source, imageQuality: 80, maxWidth: 1024);
-      if (pickedFile != null) {
-        setState(() => _vistoriaAtual.photoPaths.add(pickedFile.path));
-      }
-    } catch (e) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao selecionar imagem: $e'), backgroundColor: Colors.red));
-    }
-  }
+    if (_isSaving) return;
 
-  Future<void> _salvarEVaiParaFocos() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_tipoImovelSelecionado == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione o tipo de imóvel.'), backgroundColor: Colors.orange));
-      return;
+    if (_vistoriaAtual.dbId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Salvando vistoria para habilitar fotos...'), duration: Duration(seconds: 2)));
+      await _salvarVistoria(novoStatus: _vistoriaAtual.status, mostrarSnackbar: false);
+      if (_vistoriaAtual.dbId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível salvar. Tente novamente.'), backgroundColor: Colors.red));
+        return;
+      }
     }
+
+    final XFile? pickedFile = await _picker.pickImage(source: source, imageQuality: 80, maxWidth: 1024);
     
-    setState(() => _salvando = true);
-
-    try {
-      final vistoriaParaSalvar = _construirObjetoVistoriaParaSalvar();
-      final vistoriaAtualizada = vistoriaParaSalvar.copyWith(status: StatusVisita.realizada);
-
-      final vistoriaSalva = await dbHelper.saveFullVistoria(vistoriaAtualizada, _vistoriaAtual.focos);
-
-      if (mounted) {
-        await Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ListaFocosPage(vistoria: vistoriaSalva)));
-        Navigator.pop(context, true); 
+    if (pickedFile != null) {
+      setState(() => _isSaving = true);
+      final caminhoSalvo = await _copiarERenomearImagem(pickedFile);
+      if (caminhoSalvo != null) {
+        setState(() => _vistoriaAtual.photoPaths.add(caminhoSalvo));
+        await _salvarVistoria(novoStatus: _vistoriaAtual.status, mostrarSnackbar: false);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao processar a imagem.'), backgroundColor: Colors.red));
       }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _salvando = false);
-    }
-  }
-
-  Future<void> _finalizarVisitaSemAcesso() async {
-    if (_statusVisitaSelecionado == null || _statusVisitaSelecionado == StatusVisita.realizada || _statusVisitaSelecionado == StatusVisita.pendente) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione o status "Fechada" ou "Recusa" para usar esta opção.'), backgroundColor: Colors.orange));
-      return;
-    }
-    
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _salvando = true);
-    try {
-      final vistoriaFinalizada = _construirObjetoVistoriaParaSalvar().copyWith(
-        status: _statusVisitaSelecionado,
-        resultado: 'Não Vistoriado',
-      );
-      await dbHelper.saveFullVistoria(vistoriaFinalizada, []);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vistoria (sem acesso) salva com sucesso!'), backgroundColor: Colors.green));
-        Navigator.of(context).pop(true);
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao finalizar: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _salvando = false);
+      setState(() => _isSaving = false);
     }
   }
   
-  Future<void> _salvarAlteracoes() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _salvando = true);
-    try {
-      final vistoriaEditada = _construirObjetoVistoriaParaSalvar();
-      final vistoriaSalva = await dbHelper.saveFullVistoria(vistoriaEditada, _vistoriaAtual.focos);
-      
-      if (mounted) {
-        setState(() { _vistoriaAtual = vistoriaSalva; });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alterações salvas!'), backgroundColor: Colors.green));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _salvando = false);
-    }
-  }
-
-  Future<void> _navegarParaListaFocos() async {
-    if (_salvando) return;
-    
-    final foiAtualizado = await Navigator.push(context, MaterialPageRoute(builder: (context) => ListaFocosPage(vistoria: _vistoriaAtual)));
-    
-    if (foiAtualizado == true && mounted) {
-      _recarregarTela();
-    }
-  }
-  
-  Future<void> _recarregarTela() async {
-    if (_vistoriaAtual.dbId == null) return;
-    final vistoriaRecarregada = await dbHelper.getVistoriaById(_vistoriaAtual.dbId!);
-    if(vistoriaRecarregada != null && mounted) {
-      final focosRecarregados = await dbHelper.getFocosDaVistoria(vistoriaRecarregada.dbId!);
-      vistoriaRecarregada.focos = focosRecarregados;
-      setState(() {
-        _vistoriaAtual = vistoriaRecarregada;
-        if (_vistoriaAtual.status != StatusVisita.pendente && _vistoriaAtual.status != StatusVisita.realizada) {
-          _isReadOnly = true;
-        }
-        _preencherControllersComDadosAtuais();
-      });
-    }
-  }
-
   Future<void> _obterLocalizacaoAtual() async {
-    if (_isReadOnly) return;
-    setState(() { _buscandoLocalizacao = true; _erroLocalizacao = null; });
+    if (_isReadOnly || _isSaving) return;
+    setState(() { _isSaving = true; });
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) throw 'Serviço de GPS desabilitado.';
@@ -252,7 +184,6 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
       final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 20));
       
       setState(() {
-        _posicaoAtualExibicao = position;
         _vistoriaAtual = _vistoriaAtual.copyWith(
           latitude: position.latitude,
           longitude: position.longitude,
@@ -260,23 +191,27 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
       });
 
     } catch (e) {
-      setState(() => _erroLocalizacao = e.toString());
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao obter localização: $e')));
     } finally {
-      if (mounted) setState(() => _buscandoLocalizacao = false);
+      if (mounted) setState(() => _isSaving = false);
     }
   }
   
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(appBar: AppBar(title: Text(_isModoEdicao ? 'Editar Vistoria' : 'Nova Vistoria')), body: const Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isModoEdicao ? 'Dados da Vistoria' : 'Nova Vistoria'),
+        title: Text(_isModoEdicao ? 'Editar Vistoria' : 'Nova Vistoria'),
         backgroundColor: const Color(0xFF617359),
         foregroundColor: Colors.white,
       ),
-      body: _salvando && !_buscandoLocalizacao
-        ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
+      body: AbsorbPointer(
+        absorbing: _isSaving,
+        child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Form(
               key: _formKey,
@@ -292,107 +227,60 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
                         children: [
                           Icon(_vistoriaAtual.status.icone, size: 18, color: _vistoriaAtual.status.cor),
                           const SizedBox(width: 8),
-                          Expanded(child: Text("Visita finalizada como '${_vistoriaAtual.status.name}'.", style: TextStyle(color: _vistoriaAtual.status.cor))),
+                          Expanded(child: Text("Visita já finalizada como '${_vistoriaAtual.status.name}'. Não pode ser editada.", style: TextStyle(color: _vistoriaAtual.status.cor))),
                         ],
                       ),
                     ),
-                  _buildCamposHierarquia(),
+                  TextFormField(
+                    initialValue: _vistoriaAtual.nomeBairro,
+                    enabled: false,
+                    decoration: const InputDecoration(labelText: 'Nome do Bairro', border: OutlineInputBorder(), prefixIcon: Icon(Icons.location_city)),
+                  ),
                   const SizedBox(height: 16),
-                  TextFormField(controller: _identificadorImovelController, enabled: !_isReadOnly, decoration: const InputDecoration(labelText: 'Identificação do Imóvel (Rua, Nº)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.home_work_outlined)), validator: (v) => v == null || v.trim().isEmpty ? 'Campo obrigatório' : null),
+                  TextFormField(
+                    initialValue: _vistoriaAtual.nomeSetor,
+                    enabled: false,
+                    decoration: const InputDecoration(labelText: 'Setor / Quarteirão', border: OutlineInputBorder(), prefixIcon: Icon(Icons.grid_on)),
+                  ),
                   const SizedBox(height: 16),
-                  _buildCamposDeVistoria(),
+                  TextFormField(
+                    initialValue: _vistoriaAtual.identificadorImovel,
+                    readOnly: _isReadOnly,
+                    decoration: const InputDecoration(labelText: 'Identificação do Imóvel (Rua, Nº)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.home_work_outlined)),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Campo obrigatório' : null,
+                    onChanged: (value) => _vistoriaAtual.identificadorImovel = value,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _opcoesTipoImovel.contains(_vistoriaAtual.tipoImovel) ? _vistoriaAtual.tipoImovel : null,
+                    items: _opcoesTipoImovel.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    onChanged: _isReadOnly ? null : (value) => setState(() => _vistoriaAtual.tipoImovel = value ?? ''),
+                    decoration: const InputDecoration(labelText: 'Tipo do Imóvel', border: OutlineInputBorder(), prefixIcon: Icon(Icons.category_outlined)),
+                    validator: (v) => v == null || v.isEmpty ? 'Selecione um tipo' : null,
+                  ),
                   const SizedBox(height: 16),
                   _buildColetorCoordenadas(),
                   const SizedBox(height: 24),
                   _buildPhotoSection(),
                   const SizedBox(height: 16),
-                  TextFormField(controller: _observacaoController, enabled: !_isReadOnly, decoration: const InputDecoration(labelText: 'Observações da Vistoria', border: OutlineInputBorder(), prefixIcon: Icon(Icons.comment), helperText: 'Opcional'), maxLines: 3),
+                  TextFormField(
+                    initialValue: _vistoriaAtual.observacao,
+                    readOnly: _isReadOnly,
+                    decoration: const InputDecoration(labelText: 'Observações da Vistoria', border: OutlineInputBorder(), prefixIcon: Icon(Icons.comment), helperText: 'Opcional'),
+                    maxLines: 3,
+                    onChanged: (value) => _vistoriaAtual.observacao = value,
+                  ),
                   const SizedBox(height: 24),
                   _buildActionButtons(),
                 ],
               ),
             ),
           ),
+      ),
     );
-  }
-
-  Widget _buildCamposHierarquia() {
-    return Column(
-      children: [
-        TextFormField(controller: _bairroController, enabled: false, decoration: const InputDecoration(labelText: 'Nome do Bairro', border: OutlineInputBorder(), prefixIcon: Icon(Icons.location_city))),
-        const SizedBox(height: 16),
-        TextFormField(controller: _setorController, enabled: false, decoration: const InputDecoration(labelText: 'Setor / Quarteirão', border: OutlineInputBorder(), prefixIcon: Icon(Icons.grid_on))),
-      ],
-    );
-  }
-
-  Widget _buildCamposDeVistoria() {
-    return Column(
-      children: [
-        DropdownButtonFormField<String>(
-          value: _tipoImovelSelecionado,
-          items: _opcoesTipoImovel.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-          onChanged: _isReadOnly ? null : (value) => setState(() => _tipoImovelSelecionado = value),
-          decoration: const InputDecoration(labelText: 'Tipo do Imóvel', border: OutlineInputBorder(), prefixIcon: Icon(Icons.category_outlined)),
-          validator: (v) => v == null ? 'Selecione um tipo' : null,
-        ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<StatusVisita>(
-          value: _statusVisitaSelecionado,
-          items: StatusVisita.values.map((e) => DropdownMenuItem(value: e, child: Text(e.name))).toList(),
-          onChanged: _isReadOnly ? null : (value) => setState(() => _statusVisitaSelecionado = value),
-          decoration: const InputDecoration(labelText: 'Status da Visita', border: OutlineInputBorder(), prefixIcon: Icon(Icons.rule_outlined)),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons() {
-    if (_isReadOnly) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(height: 50, child: OutlinedButton.icon(onPressed: _navegarParaListaFocos, icon: const Icon(Icons.bug_report_outlined), label: const Text('Ver Focos Registrados', style: TextStyle(fontSize: 18)))),
-        ],
-      );
-    }
-    
-    if (_isModoEdicao) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(height: 50, child: ElevatedButton.icon(onPressed: _salvando ? null : _salvarAlteracoes, icon: _salvando ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.save_outlined), label: const Text('Salvar Dados da Vistoria', style: TextStyle(fontSize: 18)), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700, foregroundColor: Colors.white))),
-          const SizedBox(height: 12),
-          SizedBox(height: 50, child: ElevatedButton.icon(onPressed: _salvando ? null : _navegarParaListaFocos, icon: const Icon(Icons.bug_report_outlined), label: const Text('Ver/Editar Focos', style: TextStyle(fontSize: 18)), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1D4433), foregroundColor: Colors.white))),
-        ],
-      );
-    } else { 
-      final bool podeSalvarSemAcesso = _statusVisitaSelecionado == StatusVisita.fechada || _statusVisitaSelecionado == StatusVisita.recusa;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(height: 50, child: OutlinedButton.icon(
-            onPressed: _salvando || !podeSalvarSemAcesso ? null : _finalizarVisitaSemAcesso, 
-            style: OutlinedButton.styleFrom(side: BorderSide(color: podeSalvarSemAcesso ? const Color(0xFF1D4433) : Colors.grey), foregroundColor: podeSalvarSemAcesso ? const Color(0xFF1D4433) : Colors.grey),
-            icon: const Icon(Icons.block_outlined),
-            label: const Text('Salvar (Sem Acesso)', style: TextStyle(fontSize: 16))
-          )),
-          const SizedBox(height: 12),
-          SizedBox(height: 50, child: ElevatedButton.icon(
-            onPressed: _salvando ? null : _salvarEVaiParaFocos, 
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1D4433), foregroundColor: Colors.white), 
-            icon: _salvando ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.arrow_forward_ios),
-            label: const Text('Salvar e Adicionar Focos', style: TextStyle(fontSize: 16)))
-          ),
-        ],
-      );
-    }
   }
 
   Widget _buildColetorCoordenadas() {
-    final latExibicao = _posicaoAtualExibicao?.latitude ?? _vistoriaAtual.latitude;
-    final lonExibicao = _posicaoAtualExibicao?.longitude ?? _vistoriaAtual.longitude;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -403,20 +291,14 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
           decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(4)),
           child: Row(children: [
             Expanded(
-              child: _buscandoLocalizacao
-                ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(width: 16), Text('Buscando...')])
-                : _erroLocalizacao != null
-                  ? Text('Erro: $_erroLocalizacao', style: const TextStyle(color: Colors.red))
-                  : (latExibicao == null)
-                    ? const Text('Nenhuma localização obtida.')
-                    : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Lat: ${latExibicao.toStringAsFixed(6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text('Lon: ${lonExibicao!.toStringAsFixed(6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        if (_posicaoAtualExibicao != null && _posicaoAtualExibicao!.accuracy > 0)
-                          Text('Precisão: ±${_posicaoAtualExibicao!.accuracy.toStringAsFixed(1)}m', style: TextStyle(color: Colors.grey[700])),
-                      ]),
+              child: (_vistoriaAtual.latitude == null)
+                  ? const Text('Nenhuma localização obtida.')
+                  : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Lat: ${_vistoriaAtual.latitude!.toStringAsFixed(6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Lon: ${_vistoriaAtual.longitude!.toStringAsFixed(6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ]),
             ),
-            IconButton(icon: const Icon(Icons.my_location, color: Color(0xFF1D4433)), onPressed: _buscandoLocalizacao || _isReadOnly ? null : _obterLocalizacaoAtual, tooltip: 'Obter localização'),
+            IconButton(icon: const Icon(Icons.my_location, color: Color(0xFF1D4433)), onPressed: _isSaving || _isReadOnly ? null : _obterLocalizacaoAtual, tooltip: 'Obter localização'),
           ]),
         ),
       ],
@@ -435,23 +317,34 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
           child: Column(
             children: [
               _vistoriaAtual.photoPaths.isEmpty
-                  ? const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 24.0), child: Text('Nenhuma foto adicionada.')))
+                  ? Center(child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24.0), 
+                      child: Text(
+                        _vistoriaAtual.dbId != null ? 'Nenhuma foto adicionada.' : 'Salve a vistoria para adicionar fotos.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.grey),
+                      )
+                    ))
                   : GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8),
                       itemCount: _vistoriaAtual.photoPaths.length,
                       itemBuilder: (context, index) {
+                        final path = _vistoriaAtual.photoPaths[index];
                         return Stack(
                           fit: StackFit.expand,
                           children: [
-                            ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(File(_vistoriaAtual.photoPaths[index]), fit: BoxFit.cover)),
+                            ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(File(path), fit: BoxFit.cover)),
                             if (!_isReadOnly)
                               Positioned(
                                 top: -8, right: -8,
                                 child: IconButton(
                                   icon: const CircleAvatar(backgroundColor: Colors.white, radius: 12, child: Icon(Icons.close, color: Colors.red, size: 16)),
-                                  onPressed: () => setState(() => _vistoriaAtual.photoPaths.removeAt(index)),
+                                  onPressed: () async {
+                                    setState(() => _vistoriaAtual.photoPaths.removeAt(index));
+                                    await _salvarVistoria(novoStatus: _vistoriaAtual.status, mostrarSnackbar: false);
+                                  },
                                 ),
                               ),
                           ],
@@ -463,9 +356,9 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.camera), icon: const Icon(Icons.camera_alt_outlined), label: const Text('Câmera'))),
+                    Expanded(child: OutlinedButton.icon(onPressed: _isSaving ? null : () => _pickImage(ImageSource.camera), icon: const Icon(Icons.camera_alt_outlined), label: const Text('Câmera'))),
                     const SizedBox(width: 8),
-                    Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined), label: const Text('Galeria'))),
+                    Expanded(child: OutlinedButton.icon(onPressed: _isSaving ? null : () => _pickImage(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined), label: const Text('Galeria'))),
                   ],
                 ),
               ]
@@ -474,5 +367,73 @@ class _FormVistoriaPageState extends State<FormVistoriaPage> {
         ),
       ],
     );
+  }
+
+  Widget _buildActionButtons() {
+    if (_isReadOnly) {
+      return SizedBox(
+        height: 50,
+        child: OutlinedButton.icon(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ListaFocosPage(vistoria: _vistoriaAtual))),
+          icon: const Icon(Icons.bug_report_outlined),
+          label: const Text('Ver Focos Registrados', style: TextStyle(fontSize: 16)),
+        ),
+      );
+    }
+    
+    if (!_isModoEdicao) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: _isSaving ? null : () => _salvarVistoria(novoStatus: StatusVisita.realizada, navegarParaFocos: true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white),
+              icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.bug_report_outlined),
+              label: const Text('Vistoriar e Registrar Focos', style: TextStyle(fontSize: 16)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: _isSaving ? null : () => _salvarVistoria(novoStatus: StatusVisita.fechada),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.orange.shade800, side: BorderSide(color: Colors.orange.shade800)),
+                    icon: const Icon(Icons.lock_outline, size: 20),
+                    label: const Text('Fechado'),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: _isSaving ? null : () => _salvarVistoria(novoStatus: StatusVisita.recusa),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade800, side: BorderSide(color: Colors.red.shade800)),
+                    icon: const Icon(Icons.do_not_disturb_on_outlined, size: 20),
+                    label: const Text('Recusa'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    } 
+    else {
+      return SizedBox(
+        height: 50,
+        child: ElevatedButton.icon(
+          onPressed: _isSaving ? null : () => _salvarVistoria(novoStatus: _vistoriaAtual.status),
+          icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white)) : const Icon(Icons.save_outlined),
+          label: const Text('Salvar Alterações', style: TextStyle(fontSize: 16)),
+        ),
+      );
+    }
   }
 }
